@@ -9,9 +9,11 @@ open Utils
 let onStart ctx =
   option {
     let! message = ctx.Update.Message
-    let! name = message.Chat.FirstName
+    let! firstName = message.Chat.FirstName
+    let! lastName = message.Chat.LastName
 
-    sprintf "Hello, %s!" name
+    $"Добро пожаловать, {firstName} {lastName}!\n"
+    + "Введите /help, чтоб получить информацию и список команд."
     |> sendMessage message.Chat.Id
     |> api ctx.Config
     |> Async.Ignore
