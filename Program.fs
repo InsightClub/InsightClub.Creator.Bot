@@ -14,8 +14,8 @@ let botConfig =
 
 let bot =
   async {
-    // YamlConfig adds additional / character at the end of urls
-    // So don't prepend apiPath with /
+    // YamlConfig adds additional '/' character at the end of urls
+    // So don't prepend apiPath with '/'
     let apiPath = $"api/{Config.Token}"
     let webSocketEndpoint = Config.Server.Address.ToString() + apiPath
 
@@ -51,5 +51,9 @@ let bot =
 
 [<EntryPoint>]
 let main _ =
+  // Run synchronously to block the tread
+  // Don't use Async.StartImmediate
+  // or program will immediately shut after the launch
   Async.RunSynchronously bot
-  0 // return an integer exit code
+
+  0 // Return an integer exit code
