@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Insight.Creator.Bot", "Insight.Creator.Bot.fsproj", "{22545FAB-72EF-44E2-A9A6-11CF233EC720}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "InsightClub.Creator.Bot", "InsightClub.Creator.Bot.fsproj", "{22545FAB-72EF-44E2-A9A6-11CF233EC720}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

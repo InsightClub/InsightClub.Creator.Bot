@@ -1,4 +1,4 @@
-module Insight.Creator.Bot.Api
+module InsightClub.Creator.Bot.Api
 
 open Funogram.Api
 open Funogram.Telegram.Api

@@ -1,4 +1,4 @@
-namespace Insight.Creator.Bot
+namespace InsightClub.Creator.Bot
 
 open System.IO
 open FSharp.Configuration

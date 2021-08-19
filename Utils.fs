@@ -1,4 +1,4 @@
-module Insight.Creator.Bot.Utils
+module InsightClub.Creator.Bot.Utils
 
 type OptionBuilder() =
   member _.Bind(x, f) = Option.bind f x
