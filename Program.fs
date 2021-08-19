@@ -33,6 +33,9 @@ let bot =
         { Listener = listener
           ValidateRequest = (fun req -> req.Url.LocalPath = $"/{apiPath}") }
 
+      printfn "---------------Starting server---------------"
+      printfn "Server will listen at %s" Config.Server.ListenTo
+
       return!
         startBot
           { botConfig with
