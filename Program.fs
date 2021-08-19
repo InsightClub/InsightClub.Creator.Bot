@@ -32,7 +32,8 @@ let updateArrived ctx =
 
 let bot =
   async {
-    // YamlConfig adds additional "/" character at the end of urls
+    // YamlConfig adds additional / character at the end of urls
+    // So don't prepend apiPath with /
     let apiPath = $"api/{Config.Token}"
     let webSocketEndpoint = Config.Server.Address.ToString() + apiPath
 
