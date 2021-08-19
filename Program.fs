@@ -17,6 +17,7 @@ let updateArrived ctx =
   processCommands ctx [
     cmd "/start" onStart
   ]
+  |> ignore
 
 let bot =
   async {
