@@ -28,6 +28,7 @@ let updateArrived ctx =
     if Config.Bot.AllowedUsers.Contains(username) then
       processCommands ctx [
         cmd "/start" onStart
+        cmd "/restart" onStart
       ]
       |> ignore
     else
