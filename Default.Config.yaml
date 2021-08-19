@@ -1,1 +1,4 @@
 Token: ""
+Server:
+  Address: "localhost"
+  ListenTo: "http://*:4444"

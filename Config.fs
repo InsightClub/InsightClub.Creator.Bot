@@ -7,7 +7,11 @@ type Config = YamlConfig<"Default.Config.yaml">
 
 [<AutoOpen>]
 module Config =
+#if DEBUG
+  let private localConfigFilePath = "../../../Config.yaml"
+#else
   let private localConfigFilePath = "Config.yaml"
+#endif
 
   let Config =
     let c = Config()
