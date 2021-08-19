@@ -5,30 +5,12 @@ open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
-open Utils
+open Api
 
 
 let botConfig =
   { defaultConfig with
       Token = Config.Token }
-
-let onStart ctx =
-  option {
-    let! message = ctx.Update.Message
-    let! name = message.Chat.FirstName
-
-    sprintf "Hello, %s!" name
-    |> sendMessage message.Chat.Id
-    |> api ctx.Config
-    |> Async.Ignore
-    |> Async.Start
-  } |> ignore
-
-let updateArrived ctx =
-  processCommands ctx [
-    cmd "/start" onStart
-  ]
-  |> ignore
 
 let bot =
   async {
