@@ -5,13 +5,24 @@ open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
+open Utils
 
 
 let botConfig =
   { defaultConfig with
       Token = Config.Token }
 
-let onStart ctx = ()
+let onStart ctx =
+  option {
+    let! message = ctx.Update.Message
+    let! name = message.Chat.FirstName
+
+    sprintf "Hello, %s!" name
+    |> sendMessage message.Chat.Id
+    |> api ctx.Config
+    |> Async.Ignore
+    |> Async.Start
+  } |> ignore
 
 let updateArrived ctx =
   processCommands ctx [
@@ -21,8 +32,9 @@ let updateArrived ctx =
 
 let bot =
   async {
-    let apiPath = sprintf "/api/%s" Config.Token
-    let webSocketEndpoint = Config.Server.Address + apiPath
+    // YamlConfig adds additional "/" character at the end of urls
+    let apiPath = $"api/{Config.Token}"
+    let webSocketEndpoint = Config.Server.Address.ToString() + apiPath
 
     let! hook =
       setWebhookBase webSocketEndpoint None None None
@@ -36,7 +48,7 @@ let bot =
 
       let webhook =
         { Listener = listener
-          ValidateRequest = (fun req -> req.Url.LocalPath = apiPath) }
+          ValidateRequest = (fun req -> req.Url.LocalPath = $"/{apiPath}") }
 
       return!
         startBot
