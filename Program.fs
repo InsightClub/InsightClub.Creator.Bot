@@ -1,4 +1,4 @@
-﻿module Insight.Creator.Bot.Program
+module Insight.Creator.Bot.Program
 
 [<EntryPoint>]
 let main _ =
