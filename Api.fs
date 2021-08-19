@@ -21,7 +21,20 @@ let onStart ctx =
   } |> ignore
 
 let updateArrived ctx =
-  processCommands ctx [
-    cmd "/start" onStart
-  ]
+  option {
+    let! message = ctx.Update.Message
+    let! username = message.Chat.Username
+
+    if Config.Bot.AllowedUsers.Contains(username) then
+      processCommands ctx [
+        cmd "/start" onStart
+      ]
+      |> ignore
+    else
+      "Нет доступа"
+      |> sendMessage message.Chat.Id
+      |> api ctx.Config
+      |> Async.Ignore
+      |> Async.Start
+  }
   |> ignore

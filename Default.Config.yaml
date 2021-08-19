@@ -2,3 +2,5 @@ Token: ""
 Server:
   Address: "http://localhost/"
   ListenTo: "http://*:4444/"
+Bot:
+  AllowedUsers: [""]
