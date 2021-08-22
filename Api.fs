@@ -4,6 +4,7 @@ open Funogram.Api
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
 open Utils
+open Db
 
 
 let onStart ctx =
@@ -13,7 +14,6 @@ let onStart ctx =
     let! lastName = message.Chat.LastName
 
     $"Добро пожаловать, {firstName} {lastName}!\n"
-    + "Введите /help, чтоб получить информацию и список команд."
     |> sendMessage message.Chat.Id
     |> api ctx.Config
     |> Async.Ignore

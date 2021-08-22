@@ -4,3 +4,6 @@ Server:
   ListenTo: "http://*:4444/"
 Bot:
   AllowedUsers: [""]
+Db:
+  ConnectionString: ""
+  DbName: ""

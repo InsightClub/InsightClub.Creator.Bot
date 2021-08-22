@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="Config.fs" />
     <Compile Include="Utils.fs" />
+    <Compile Include="Db.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
@@ -25,6 +26,8 @@
     <PackageReference Include="FSharp.Configuration" Version="2.0.0" />
     <PackageReference Include="Funogram" Version="2.0.3" />
     <PackageReference Include="Funogram.Telegram" Version="4.4.2.3" />
+    <PackageReference Include="mongocsharpdriver" Version="2.13.1" />
+    <PackageReference Include="MongoDB.FSharp" Version="0.1.0" />
   </ItemGroup>
 
   <ItemGroup>
