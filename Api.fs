@@ -37,5 +37,4 @@ let updateArrived ctx =
       |> api ctx.Config
       |> Async.Ignore
       |> Async.Start
-  }
-  |> ignore
+  }   |> ignore
