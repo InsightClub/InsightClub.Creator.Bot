@@ -3,7 +3,7 @@ Server:
   Address: "http://localhost/"
   ListenTo: "http://*:4444/"
 Bot:
-  AllowedUsers: [""]
+  AllowedUsers: [ 0 ]
 Db:
   ConnectionString: ""
   DbName: ""
