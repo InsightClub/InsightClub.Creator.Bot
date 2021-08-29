@@ -8,46 +8,49 @@ open Funogram.Telegram.Bot
 open Api
 
 
-let botConfig =
-  { defaultConfig with
-      Token = Config.Token }
-
 let bot =
-  async {
-    // YamlConfig adds additional '/' character at the end of urls
-    // So don't prepend apiPath with '/'
-    let apiPath = $"api/{Config.Token}"
-    let webSocketEndpoint = Config.Server.Address.ToString() + apiPath
+  // YamlConfig adds additional '/' character at the end of urls
+  // So don't prepend apiPath with '/'
+  let apiPath = $"api/{Config.Token}"
 
-    let! hook =
-      setWebhookBase webSocketEndpoint None None None
-      |> api botConfig
+  let webSocketEndpoint = Config.Server.Address.ToString() + apiPath
 
-    match hook with
-    | Ok _ ->
-      use listener = new HttpListener()
-      listener.Prefixes.Add(Config.Server.ListenTo)
-      listener.Start()
+  let botConfig =
+    { defaultConfig with
+        Token = Config.Token }
 
-      let webhook =
-        { Listener = listener
-          ValidateRequest = (fun req -> req.Url.LocalPath = $"/{apiPath}") }
+  async
+    { let! hook =
+        setWebhookBase webSocketEndpoint None None None
+        |> api botConfig
 
-      printfn "---------------Starting server---------------"
-      printfn "Server will listen at %s" Config.Server.ListenTo
+      match hook with
+      | Ok _ ->
+        printfn "---------------Starting server---------------"
+        printfn "Server will listen at %s" Config.Server.ListenTo
 
-      return!
-        startBot
+        use listener = new HttpListener()
+
+        listener
+          .Prefixes
+          .Add(Config.Server.ListenTo)
+
+        let validate (req: HttpListenerRequest) =
+          req.Url.LocalPath = $"/{apiPath}"
+
+        let webhook =
+          { Listener = listener
+            ValidateRequest = validate }
+
+        let botConfig =
           { botConfig with
               WebHook = Some webhook }
-          updateArrived
-          None
 
-    | Error e ->
-      printfn "---------------Can't set webhook---------------"
-      printfn "%A" e
-      return ()
-  }
+        do! startBot botConfig updateArrived None
+
+      | Error e ->
+        printfn "---------------Can't set webhook---------------"
+        printfn "%A" e }
 
 [<EntryPoint>]
 let main _ =
