@@ -1,7 +1,7 @@
 Token: ""
 Server:
   Address: "http://localhost/"
-  ListenTo: "http://*:4444/"
+  Listen: "http://*:4444/"
 Bot:
   AllowedUsers: [ 0 ]
 Db:
