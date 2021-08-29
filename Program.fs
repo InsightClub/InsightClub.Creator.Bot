@@ -70,6 +70,6 @@ let main _ =
 
     startBot appConfig
   else
-    printfn "Please, provide a Config.yaml file"
+    printfn "Please, provide a %s file" configFilePath
 
   0 // Return an integer exit code
