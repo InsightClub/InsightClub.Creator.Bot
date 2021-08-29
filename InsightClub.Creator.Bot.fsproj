@@ -8,6 +8,9 @@
 
   <ItemGroup>
     <Compile Include="Core.fs" />
+    <Compile Include="Model.fs" />
+    <Compile Include="Context.fs" />
+    <Compile Include="ContextFactory.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
