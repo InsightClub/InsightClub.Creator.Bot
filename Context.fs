@@ -1,7 +1,6 @@
 namespace InsightClub.Creator.Bot
 
 open System
-open System.Linq
 open Microsoft.EntityFrameworkCore
 open EntityFrameworkCore.FSharp.Extensions
 open Model
@@ -45,11 +44,10 @@ type internal Context(connectionString: string) =
     builder
       .Entity<BlockType>()
       .HasData(
-        (query {
-          for t in Enum.GetValues<BlockTypeId>() do
-            select { BlockTypeId = t; BlockTypeName = string t }
-         })
-          .ToArray()
+        Enum.GetValues<BlockTypeId>()
+        |> Array.map (
+          fun i ->
+            { BlockTypeId = i; BlockTypeName = string i })
       )
     |> ignore
 
