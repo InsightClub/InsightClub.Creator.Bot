@@ -20,6 +20,7 @@ type internal Context(connectionString: string) =
       .Entity<Block>()
       .Property(fun b -> b.BlockType)
       .HasConversion<string>()
+      .IsRequired()
     |> ignore
 
     builder
