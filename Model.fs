@@ -5,8 +5,10 @@ open System.ComponentModel.DataAnnotations.Schema
 open Microsoft.EntityFrameworkCore
 
 
-// EfCore.FSharp doesn't understand that string are required by
-// default. So [<Required>] attribute is required on every string field.
+// EfCore.FSharp doesn't understand that strings are required by default.
+// As in one of it's issues on GitHub was mentioned, it will be fixed after
+// EFCore 6 release. So [<Required>] attribute is required on every
+// string field by now.
 
 type BlockTypeId =
   | Text = 0
