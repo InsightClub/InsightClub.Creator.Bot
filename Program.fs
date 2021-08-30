@@ -2,15 +2,12 @@ module internal InsightClub.Creator.Bot.Program
 
 open System.IO
 open System.Net
-open FSharp.Configuration
 open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
 open Api
 
-
-type Config = YamlConfig<"Default.Config.yaml">
 
 let startBot (appConfig: Config) =
   // YamlConfig adds additional '/' character at the end of urls
@@ -56,20 +53,19 @@ let startBot (appConfig: Config) =
 
 [<EntryPoint>]
 let main _ =
-  let configFilePath =
-  #if DEBUG
-    "../../../Config.yaml"
-  #else
-    "Config.yaml"
-  #endif
+  let filePath =
+    #if DEBUG
+      "../../../Config.yaml"
+    #else
+      "Config.yaml"
+    #endif
 
-  let appConfig = Config()
+  let printOnNoFile () =
+    printfn $"Please, provide a {filePath} file"
 
-  if (File.Exists configFilePath) then
-    appConfig.Load(configFilePath)
-
-    startBot appConfig
-  else
-    printfn "Please, provide a %s file" configFilePath
+  filePath
+  |> Config.tryLoad
+  |> Option.map startBot
+  |> Option.defaultWith printOnNoFile
 
   0 // Return an integer exit code

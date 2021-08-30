@@ -1,10 +1,5 @@
 module internal rec InsightClub.Creator.Bot.Model
 
-open System.ComponentModel.DataAnnotations
-open System.ComponentModel.DataAnnotations.Schema
-open Microsoft.EntityFrameworkCore
-open Core
-
 
 // EfCore.FSharp doesn't understand that strings are required by default.
 // As in one of it's issues on GitHub was mentioned, it will be fixed after
@@ -40,4 +35,4 @@ type Course =
 type Creator =
   { CreatorId: int
     TelegramId: int64
-    BotState: BotState }
+    BotState: Core.BotState }
