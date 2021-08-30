@@ -1,4 +1,4 @@
-module internal rec InsightClub.Creator.Bot.Model
+module internal InsightClub.Creator.Bot.Model
 
 
 type BlockType =
