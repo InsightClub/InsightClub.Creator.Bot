@@ -41,13 +41,15 @@ type internal Context(connectionString: string) =
       .IsUnique()
     |> ignore
 
+    let getBlockType i =
+      { BlockTypeId = i
+        BlockTypeName = string i }
+
     builder
       .Entity<BlockType>()
       .HasData(
         Enum.GetValues<BlockTypeId>()
-        |> Array.map (
-          fun i ->
-            { BlockTypeId = i; BlockTypeName = string i })
+        |> Array.map getBlockType
       )
     |> ignore
 
