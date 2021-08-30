@@ -3,6 +3,7 @@ module rec InsightClub.Creator.Bot.Model
 open System.ComponentModel.DataAnnotations
 open System.ComponentModel.DataAnnotations.Schema
 open Microsoft.EntityFrameworkCore
+open Core
 
 
 // EfCore.FSharp doesn't understand that strings are required by default.
@@ -54,4 +55,6 @@ type Course =
 type Creator =
   { CreatorId: int
     TelegramId: int64
-    Courses: Course list }
+    Courses: Course list
+    [<Column(TypeName = "jsonb")>]
+    BotState: BotState }
