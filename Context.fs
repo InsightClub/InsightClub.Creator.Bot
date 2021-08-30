@@ -1,6 +1,5 @@
 namespace InsightClub.Creator.Bot
 
-open System
 open Microsoft.EntityFrameworkCore
 open EntityFrameworkCore.FSharp.Extensions
 open Model
@@ -9,7 +8,6 @@ open Model
 type internal Context(connectionString: string) =
   inherit DbContext()
 
-  member this.BlockTypes = this.Set<BlockType>()
   member this.Blocks = this.Set<Block>()
   member this.Courses = this.Set<Course>()
   member this.Creators = this.Set<Creator>()
@@ -17,47 +15,11 @@ type internal Context(connectionString: string) =
   override _.OnModelCreating builder =
     builder.RegisterOptionTypes()
 
-    // BlockType
-    builder
-      .Entity<BlockType>()
-      .Property(fun t -> t.BlockTypeId)
-      .HasConversion<int>()
-    |> ignore
-
-    builder
-      .Entity<BlockType>()
-      .Property(fun t -> t.BlockTypeName)
-      .IsRequired()
-    |> ignore
-
-    builder
-      .Entity<BlockType>()
-      .HasKey(fun t -> t.BlockTypeId :> obj)
-    |> ignore
-
-    builder
-      .Entity<BlockType>()
-      .HasIndex(fun t -> t.BlockTypeName :> obj)
-      .IsUnique()
-    |> ignore
-
-    let getBlockType i =
-      { BlockTypeId = i
-        BlockTypeName = string i }
-
-    builder
-      .Entity<BlockType>()
-      .HasData(
-        Enum.GetValues<BlockTypeId>()
-        |> Array.map getBlockType
-      )
-    |> ignore
-
     // Block
     builder
       .Entity<Block>()
-      .Property(fun b -> b.BlockTypeId)
-      .HasConversion<int>()
+      .Property(fun b -> b.BlockType)
+      .HasConversion<string>()
     |> ignore
 
     builder
@@ -69,8 +31,7 @@ type internal Context(connectionString: string) =
 
     builder
       .Entity<Block>()
-      .HasKey(
-        fun b -> (b.CourseId, b.BlockIndex) :> obj)
+      .HasKey(fun b -> (b.CourseId, b.BlockIndex) :> obj)
       |> ignore
 
     builder
@@ -102,8 +63,7 @@ type internal Context(connectionString: string) =
 
     builder
       .Entity<Course>()
-      .HasIndex(
-        fun c -> (c.CreatorId, c.CourseName) :> obj)
+      .HasIndex(fun c -> (c.CreatorId, c.CourseName) :> obj)
       .IsUnique()
     |> ignore
 
@@ -130,6 +90,7 @@ type internal Context(connectionString: string) =
       .Entity<Creator>()
       .Property(fun c -> c.BotState)
       .HasColumnType("jsonb")
+      .IsRequired()
     |> ignore
 
   override _.OnConfiguring(options: DbContextOptionsBuilder) =
