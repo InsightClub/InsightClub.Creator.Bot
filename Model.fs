@@ -18,43 +18,26 @@ type BlockTypeId =
 // Separate entity ensures that with code changes existing
 // blocks will have the same type.
 [<CLIMutable>]
-[<Index("BlockTypeName", IsUnique = true)>]
 type BlockType =
   { BlockTypeId: BlockTypeId
-    [<Required>]
     BlockTypeName: string }
 
 [<CLIMutable>]
 type Block =
-  { [<Key>]
-    [<Column(Order = 1)>]
-    CourseId: int
-    [<Key>]
-    [<Column(Order = 2)>]
+  { CourseId: int
     BlockIndex: int
     BlockTypeId: BlockTypeId
-    BlockType: BlockType
-    [<Required>]
-    Content: string
-    Course: Course }
+    Content: string }
 
 [<CLIMutable>]
-[<Index("CreatorId", "CourseName", IsUnique = true)>]
 type Course =
   { CourseId: int
     CreatorId: int
-    [<Required>]
     CourseName: string
-    [<Required>]
-    CourseDescription: string
-    Creator: Creator
-    Blocks: Block list }
+    CourseDescription: string }
 
 [<CLIMutable>]
-[<Index("TelegramId", IsUnique = true)>]
 type Creator =
   { CreatorId: int
     TelegramId: int64
-    Courses: Course list
-    [<Column(TypeName = "jsonb")>]
     BotState: BotState }
