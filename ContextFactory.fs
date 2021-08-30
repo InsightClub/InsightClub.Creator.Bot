@@ -13,5 +13,5 @@ type internal ContextFactory() =
 
       filePath
       |> Config.tryLoad
-      |> Option.map (fun config -> new Context(config.Db.ConnectionString))
+      |> Option.map (fun c -> new Context(Config.getConnectionString c))
       |> Option.defaultWith fail

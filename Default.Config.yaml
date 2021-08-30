@@ -5,5 +5,7 @@ Server:
 Bot:
   AllowedUsers: [ 0 ]
 Db:
-  ConnectionString: ""
-  DbName: ""
+  Host: ""
+  Database: ""
+  Username: ""
+  Password: ""

@@ -15,3 +15,9 @@ module internal Config =
       Some config
     else
       None
+
+  let getConnectionString (config: Config) =
+    $"Host={config.Db.Host};
+      Database={config.Db.Database};
+      Username={config.Db.Username};
+      Password={config.Db.Password}"
