@@ -7,7 +7,7 @@ open Microsoft.EntityFrameworkCore
 open Microsoft.EntityFrameworkCore.Infrastructure
 
 [<DbContext(typeof<Context>)>]
-type ContextModelSnapshot() =
+type internal ContextModelSnapshot() =
   inherit ModelSnapshot()
 
   override this.BuildModel(modelBuilder: ModelBuilder) =

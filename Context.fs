@@ -7,7 +7,7 @@ open EntityFrameworkCore.FSharp.Extensions
 open Model
 
 
-type Context(connectionString: string) =
+type internal Context(connectionString: string) =
   inherit DbContext()
 
   member this.BlockTypes = this.Set<BlockType>()

@@ -1,4 +1,4 @@
-module InsightClub.Creator.Bot.Api
+module internal InsightClub.Creator.Bot.Api
 
 
 // Stub

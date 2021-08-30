@@ -1,4 +1,4 @@
-module rec InsightClub.Creator.Bot.Model
+module internal rec InsightClub.Creator.Bot.Model
 
 open System.ComponentModel.DataAnnotations
 open System.ComponentModel.DataAnnotations.Schema

@@ -1,4 +1,4 @@
-module InsightClub.Creator.Bot.Core
+module internal InsightClub.Creator.Bot.Core
 
 
 // Types

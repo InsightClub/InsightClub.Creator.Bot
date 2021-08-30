@@ -1,4 +1,4 @@
-module InsightClub.Creator.Bot.Program
+module internal InsightClub.Creator.Bot.Program
 
 open System.IO
 open System.Net

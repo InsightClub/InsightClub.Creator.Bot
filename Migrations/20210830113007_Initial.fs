@@ -10,7 +10,7 @@ open Npgsql.EntityFrameworkCore.PostgreSQL.Metadata
 
 [<DbContext(typeof<Context>)>]
 [<Migration("20210830113007_Initial")>]
-type Initial() =
+type internal Initial() =
   inherit Migration()
 
   override this.Up(migrationBuilder: MigrationBuilder) =
