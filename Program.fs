@@ -1,6 +1,5 @@
 module internal InsightClub.Creator.Bot.Program
 
-open System.IO
 open System.Net
 open Funogram.Api
 open Funogram.Types

@@ -5,6 +5,7 @@ open System
 open InsightClub.Creator.Bot
 open Microsoft.EntityFrameworkCore
 open Microsoft.EntityFrameworkCore.Infrastructure
+open InsightClub.Creator.Bot.Model
 
 [<DbContext(typeof<Context>)>]
 type internal ContextModelSnapshot() =
