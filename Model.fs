@@ -3,26 +3,26 @@ namespace InsightClub.Creator.Bot.Model
 open InsightClub.Creator.Bot
 
 
-type internal BlockType =
+type BlockType =
   | Text = 0
   | Voice = 1
 
 [<CLIMutable>]
-type internal Block =
+type Block =
   { CourseId: int
     BlockIndex: int
     BlockType: BlockType
     Content: string }
 
 [<CLIMutable>]
-type internal Course =
+type Course =
   { CourseId: int
     CreatorId: int
     CourseName: string
     CourseDescription: string }
 
 [<CLIMutable>]
-type internal Creator =
+type Creator =
   { CreatorId: int
     TelegramId: int64
     BotState: Core.BotState }

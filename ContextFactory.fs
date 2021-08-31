@@ -4,7 +4,7 @@ open Microsoft.EntityFrameworkCore.Design
 open InsightClub.Creator.Bot
 open InsightClub.Creator.Bot.Model
 
-type internal ContextFactory() =
+type ContextFactory() =
   interface IDesignTimeDbContextFactory<Context> with
     member _.CreateDbContext(_: string array) =
       let filePath = "Config.yaml"

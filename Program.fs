@@ -1,4 +1,4 @@
-module internal InsightClub.Creator.Bot.Program
+module InsightClub.Creator.Bot.Program
 
 open System.Net
 open Funogram.Api

@@ -11,7 +11,7 @@ open InsightClub.Creator.Bot.Model
 
 [<DbContext(typeof<Context>)>]
 [<Migration("20210830202155_Initial")>]
-type internal Initial() =
+type Initial() =
   inherit Migration()
 
   override this.Up(migrationBuilder: MigrationBuilder) =

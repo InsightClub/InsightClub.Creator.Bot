@@ -4,9 +4,9 @@ open System.IO
 open FSharp.Configuration
 
 
-type internal Config = YamlConfig<"Default.Config.yaml">
+type Config = YamlConfig<"Default.Config.yaml">
 
-module internal Config =
+module Config =
   let tryLoad filePath =
     let config = Config()
 

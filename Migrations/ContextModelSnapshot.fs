@@ -8,7 +8,7 @@ open Microsoft.EntityFrameworkCore.Infrastructure
 open InsightClub.Creator.Bot.Model
 
 [<DbContext(typeof<Context>)>]
-type internal ContextModelSnapshot() =
+type ContextModelSnapshot() =
   inherit ModelSnapshot()
 
   override this.BuildModel(modelBuilder: ModelBuilder) =
