@@ -10,8 +10,6 @@
     <Compile Include="Core.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Context.fs" />
-    <Compile Include="Migrations\20210830202155_Initial.fs" />
-    <Compile Include="Migrations\ContextModelSnapshot.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="ContextFactory.fs" Condition="'$(Configuration)'=='DEBUG'" />
     <Compile Include="Api.fs" />
