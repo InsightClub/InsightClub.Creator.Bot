@@ -1,4 +1,4 @@
-namespace InsightClub.Creator.Bot.Model
+module InsightClub.Creator.Bot.Model
 
 open InsightClub.Creator.Bot
 

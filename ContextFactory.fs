@@ -1,8 +1,7 @@
-namespace InsightClub.Creator.Bot.Model.Design
+module InsightClub.Creator.Bot.Context.Factory
 
 open Microsoft.EntityFrameworkCore.Design
 open InsightClub.Creator.Bot
-open InsightClub.Creator.Bot.Model
 
 type ContextFactory() =
   interface IDesignTimeDbContextFactory<Context> with

@@ -5,6 +5,7 @@ open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
+open Config
 open Api
 
 

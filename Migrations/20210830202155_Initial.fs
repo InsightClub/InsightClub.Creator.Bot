@@ -7,7 +7,7 @@ open Microsoft.EntityFrameworkCore
 open Microsoft.EntityFrameworkCore.Infrastructure
 open Microsoft.EntityFrameworkCore.Migrations
 open Npgsql.EntityFrameworkCore.PostgreSQL.Metadata
-open InsightClub.Creator.Bot.Model
+open Context
 
 [<DbContext(typeof<Context>)>]
 [<Migration("20210830202155_Initial")>]

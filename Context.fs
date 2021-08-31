@@ -1,7 +1,8 @@
-namespace InsightClub.Creator.Bot.Model
+module InsightClub.Creator.Bot.Context
 
 open Microsoft.EntityFrameworkCore
 open EntityFrameworkCore.FSharp.Extensions
+open Model
 
 
 type Context(connectionString: string) =
