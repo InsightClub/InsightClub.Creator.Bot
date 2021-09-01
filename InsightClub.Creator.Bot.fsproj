@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Helpers.fs" />
     <Compile Include="Core.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Model.fs" />
@@ -14,6 +15,7 @@
     <Compile Include="ContextFactory.fs" Condition="'$(Configuration)'=='DEBUG'" />
     <Compile Include="Migrations\20210901083632_Initial.fs" />
     <Compile Include="Migrations\ContextModelSnapshot.fs" />
+    <Compile Include="Repo.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
