@@ -103,3 +103,7 @@ type Context(connectionString: string) =
       .UseNpgsql(connectionString)
       .UseFSharpTypes()
     |> ignore
+
+module Context =
+  let create connectionString =
+    new Context(connectionString)
