@@ -81,6 +81,14 @@ type Context(connectionString: string) =
     // Creator
     builder
       .Entity<Creator>()
+      .Property(fun c -> c.BotState)
+      .HasConversion(Json.serialize, Json.deserialize)
+      .HasColumnType("jsonb")
+      .IsRequired()
+    |> ignore
+
+    builder
+      .Entity<Creator>()
       .HasKey(fun c -> c.CreatorId :> obj)
     |> ignore
 
@@ -88,14 +96,6 @@ type Context(connectionString: string) =
       .Entity<Creator>()
       .HasIndex(fun c -> c.TelegramId :> obj)
       .IsUnique()
-    |> ignore
-
-    builder
-      .Entity<Creator>()
-      .Property(fun c -> c.BotState)
-      .HasConversion(Json.serialize, Json.deserialize)
-      .HasColumnType("jsonb")
-      .IsRequired()
     |> ignore
 
   override _.OnConfiguring(options: DbContextOptionsBuilder) =

@@ -6,6 +6,7 @@ open InsightClub.Creator.Bot
 open Microsoft.EntityFrameworkCore
 open Microsoft.EntityFrameworkCore.Infrastructure
 
+
 [<DbContext(typeof<Context.Context>)>]
 type ContextModelSnapshot() =
   inherit ModelSnapshot()

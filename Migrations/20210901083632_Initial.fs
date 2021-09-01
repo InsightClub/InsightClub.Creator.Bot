@@ -8,6 +8,7 @@ open Microsoft.EntityFrameworkCore.Infrastructure
 open Microsoft.EntityFrameworkCore.Migrations
 open Npgsql.EntityFrameworkCore.PostgreSQL.Metadata
 
+
 [<DbContext(typeof<Context.Context>)>]
 [<Migration("20210901083632_Initial")>]
 type Initial() =
