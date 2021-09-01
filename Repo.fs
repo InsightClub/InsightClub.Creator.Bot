@@ -8,7 +8,7 @@ open Context
 
 
 let getCreatorAsync (ctx: Context) telegramId =
-  let createOp =
+  let createOp () =
     let creator =
       { CreatorId = 0
         TelegramId = telegramId
@@ -23,7 +23,7 @@ let getCreatorAsync (ctx: Context) telegramId =
   |> tryFilterFirstAsync <@ fun c -> c.TelegramId = telegramId @>
   |> Async.bind
       ( Option.map Async.unit
-        >> Option.defaultValue createOp )
+        >> Option.defaultWith createOp )
 
 let updateCreatorAsync (ctx: Context) creator =
   updateEntityAsync ctx (fun c -> c.CreatorId :> obj) creator
