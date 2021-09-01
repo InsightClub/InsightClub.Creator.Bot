@@ -10,6 +10,8 @@
     <Compile Include="Core.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Context.fs" />
+    <Compile Include="Migrations\20210901083632_Initial.fs" />
+    <Compile Include="Migrations\ContextModelSnapshot.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="ContextFactory.fs" Condition="'$(Configuration)'=='DEBUG'" />
     <Compile Include="Api.fs" />
@@ -33,6 +35,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="5.0.7" />
   </ItemGroup>
 

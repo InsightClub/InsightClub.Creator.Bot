@@ -1,9 +1,12 @@
 module InsightClub.Creator.Bot.Context
 
+open Microsoft.FSharpLu.Json
 open Microsoft.EntityFrameworkCore
 open EntityFrameworkCore.FSharp.Extensions
 open Model
 
+
+module Json = Compact.Strict
 
 type Context(connectionString: string) =
   inherit DbContext()
@@ -90,6 +93,7 @@ type Context(connectionString: string) =
     builder
       .Entity<Creator>()
       .Property(fun c -> c.BotState)
+      .HasConversion(Json.serialize, Json.deserialize)
       .HasColumnType("jsonb")
       .IsRequired()
     |> ignore
