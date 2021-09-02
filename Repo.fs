@@ -1,6 +1,7 @@
 module InsightClub.Creator.Bot.Repo
 
 open EntityFrameworkCore.FSharp.DbContextHelpers
+open FsToolkit.ErrorHandling
 open Helpers
 open Core
 open Model
@@ -8,22 +9,26 @@ open Context
 
 
 let getCreatorAsync (ctx: Context) telegramId =
-  let createOp () =
+  let createOp =
     let creator =
       { CreatorId = 0
         TelegramId = telegramId
         BotState = initialState }
 
-    creator
-    |> addEntityAsync ctx
-    |> Async.bind (depute saveChangesAsync ctx)
-    |> Async.map (always creator)
+    async
+      { do! addEntityAsync ctx creator
+        do! saveChangesAsync ctx
+        return creator }
 
-  ctx.Creators
-  |> tryFilterFirstAsync <@ fun c -> c.TelegramId = telegramId @>
-  |> Async.bind
-      ( Option.map Async.unit
-        >> Option.defaultWith createOp )
+  async
+    { let! creatorOption =
+        tryFilterFirstAsync
+          <@ fun c -> c.TelegramId = telegramId @>
+          ctx.Creators
+
+      if Option.isSome creatorOption
+      then return Option.get creatorOption
+      else return! createOp }
 
 let updateCreatorAsync (ctx: Context) creator =
   updateEntityAsync ctx (fun c -> c.CreatorId :> obj) creator

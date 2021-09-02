@@ -12,16 +12,16 @@ open Context
 open Api
 
 
-let startBot (appConfig: Config) (dbContext: Context) =
+let startBot
+  (appConfig: Config)
+  (listener: HttpListener)
+  (dbContext: Context) =
   // YamlConfig adds additional '/' character at the end of urls
   // So don't prepend apiPath with '/'
   let apiPath = $"api/{appConfig.Token}"
 
   let webhookUrl =
     appConfig.Server.Address.ToString() + apiPath
-
-  use listener = new HttpListener()
-  listener.Prefixes.Add(appConfig.Server.Listen)
 
   let validate (req: HttpListenerRequest) =
     req.Url.LocalPath = $"/{apiPath}"
@@ -35,24 +35,28 @@ let startBot (appConfig: Config) (dbContext: Context) =
         Token = appConfig.Token
         WebHook = Some webhook }
 
-  let start _ =
-    printfn "Bot started! Listening to %s" appConfig.Server.Listen
-    startBot botConfig (updateArrived appConfig dbContext) None
-    |> Async.RunSynchronously
-
   let printError e =
     printfn "Failed creating webhook:"
     printfn "%A" e
 
-  // Run synchronously to block the tread
-  // Don't use Async.StartImmediate
-  // or program will immediately shut after the launch
-  setWebhookBase webhookUrl None None None
-  |> api botConfig
-  |> Async.RunSynchronously
-  |> Result.map start
-  |> Result.mapError printError
-  |> ignore
+  let printStarted () =
+    printfn
+      "Bot started! Listening to %s"
+      appConfig.Server.Listen
+
+  let setWebHook () =
+    setWebhookBase webhookUrl None None None
+    |> api botConfig
+    |> Async.map (Result.map ignore >> Result.mapError printError)
+
+  let start () =
+    printStarted ()
+    startBot botConfig (updateArrived appConfig dbContext) None
+
+  asyncResult
+    { do! setWebHook ()
+      do! start () }
+  |> Async.Ignore
 
 [<EntryPoint>]
 let main _ =
@@ -66,32 +70,32 @@ let main _ =
   let printNoFile () =
     printfn $"Please, provide a {filePath} file."
 
-  let printNoContext () =
+  let printNoConnection () =
     printfn "%s"
       <| "Error connecting to database. "
       +  "Probably the problem is with connection details."
 
-  let testConnection (context: Context) =
-    if context.Database.CanConnect() then
-      Some context
-    else
-      None
-
-  option
+  // Run synchronously to block the tread
+  // Don't use Async.StartImmediate
+  // or program will immediately shut after the launch
+  asyncOption
     { let! config =
-        Config.tryLoad filePath
+        filePath
+        |> Config.tryLoad
         |> Option.onNone printNoFile
 
-      let connStr =
-        Config.connStr config
+      use listener = new HttpListener()
+      listener.Prefixes.Add(config.Server.Listen)
 
-      use! context =
-        Context.create connStr
-        |> Option.tryCatch testConnection
-        |> Option.flatten
-        |> Option.onNone printNoContext
+      use context =
+        config
+        |> Config.connStr
+        |> Context.create
 
-      startBot config context }
-  |> ignore
+      if Context.canConnect context
+      then do! startBot config listener context
+      else printNoConnection () }
+  |> Async.Ignore
+  |> Async.RunSynchronously
 
   0 // Return an integer exit code

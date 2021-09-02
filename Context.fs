@@ -107,3 +107,7 @@ type Context(connectionString: string) =
 module Context =
   let create connectionString =
     new Context(connectionString)
+
+  let canConnect (context: Context) =
+    try context.Database.CanConnect()
+    with _ -> false

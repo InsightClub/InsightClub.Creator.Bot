@@ -4,10 +4,11 @@ open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
+open FsToolkit.ErrorHandling
 open Core
+open Repo
 
 
-// Event
 let commands =
   Map.ofList
     [ ("/start", BotCommand.Start)
@@ -40,11 +41,20 @@ let tryGetEvent ctx =
   | _ ->
     None
 
-// User
 let tryGetUser ctx =
   ctx.Update.Message
   |> Option.bind (fun m -> m.From)
 
-// Stub
-let updateArrived config dbContext upContext =
+let handleUpdate telegramUser creator event newState =
   ()
+
+let updateArrived config dbContext upContext =
+  asyncOption
+    { let! user = tryGetUser upContext
+      let! creator = getCreatorAsync dbContext user.Id
+      let! event = tryGetEvent upContext
+      let newState = updateState creator.BotState event
+
+      handleUpdate user creator event newState }
+  |> Async.Ignore
+  |> Async.StartImmediate
