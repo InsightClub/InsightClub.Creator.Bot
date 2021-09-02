@@ -16,7 +16,8 @@ module Config =
     else
       None
 
-  let getConnectionString (config: Config) =
+  /// Constructs database connection string.
+  let connStr (config: Config) =
     $"Host={config.Db.Host};
       Database={config.Db.Database};
       Username={config.Db.Username};

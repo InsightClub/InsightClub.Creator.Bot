@@ -5,11 +5,14 @@ open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
+open FsToolkit.ErrorHandling
+open Helpers
 open Config
+open Context
 open Api
 
 
-let startBot (appConfig: Config) =
+let startBot (appConfig: Config) (dbContext: Context) =
   // YamlConfig adds additional '/' character at the end of urls
   // So don't prepend apiPath with '/'
   let apiPath = $"api/{appConfig.Token}"
@@ -34,7 +37,7 @@ let startBot (appConfig: Config) =
 
   let start _ =
     printfn "Bot started! Listening to %s" appConfig.Server.Listen
-    startBot botConfig updateArrived None
+    startBot botConfig (updateArrived appConfig dbContext) None
     |> Async.RunSynchronously
 
   let printError e =
@@ -60,12 +63,35 @@ let main _ =
       "Config.yaml"
     #endif
 
-  let printOnNoFile () =
-    printfn $"Please, provide a {filePath} file"
+  let printNoFile () =
+    printfn $"Please, provide a {filePath} file."
 
-  filePath
-  |> Config.tryLoad
-  |> Option.map startBot
-  |> Option.defaultWith printOnNoFile
+  let printNoContext () =
+    printfn "%s"
+      <| "Error connecting to database. "
+      +  "Probably the problem is with connection details."
+
+  let testConnection (context: Context) =
+    if context.Database.CanConnect() then
+      Some context
+    else
+      None
+
+  option
+    { let! config =
+        Config.tryLoad filePath
+        |> Option.onNone printNoFile
+
+      let connStr =
+        Config.connStr config
+
+      use! context =
+        Context.create connStr
+        |> Option.tryCatch testConnection
+        |> Option.flatten
+        |> Option.onNone printNoContext
+
+      startBot config context }
+  |> ignore
 
   0 // Return an integer exit code

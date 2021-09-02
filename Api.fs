@@ -46,5 +46,5 @@ let tryGetUser ctx =
   |> Option.bind (fun m -> m.From)
 
 // Stub
-let updateArrived ctx =
+let updateArrived config dbContext upContext =
   ()

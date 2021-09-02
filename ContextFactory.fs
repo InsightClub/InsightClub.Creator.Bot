@@ -14,5 +14,5 @@ type ContextFactory() =
 
       filePath
       |> Config.tryLoad
-      |> Option.map (fun c -> new Context(Config.getConnectionString c))
+      |> Option.map (Config.connStr >> Context.create)
       |> Option.defaultWith fail
