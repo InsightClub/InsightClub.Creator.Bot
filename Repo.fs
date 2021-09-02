@@ -31,4 +31,7 @@ let getCreatorAsync (ctx: Context) telegramId =
       else return! createOp }
 
 let updateCreatorAsync (ctx: Context) creator =
-  updateEntityAsync ctx (fun c -> c.CreatorId :> obj) creator
+  async
+    { let! _ = updateEntityAsync ctx (fun c -> c.CreatorId :> obj) creator
+      do! saveChangesAsync ctx }
+
