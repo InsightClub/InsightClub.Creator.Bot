@@ -9,6 +9,19 @@ open Core
 open Repo
 
 
+// Helpers
+let apiIgnore config req =
+  req
+  |> api config
+  |> Async.Ignore
+
+let sendMessageAsync config chatId message =
+  sendMessage chatId message
+  |> apiIgnore config
+
+let handleUpdate user entity event newState config =
+  ()
+
 let commands =
   Map.ofList
     [ ("/start", BotCommand.Start)
@@ -45,16 +58,14 @@ let tryGetUser ctx =
   ctx.Update.Message
   |> Option.bind (fun m -> m.From)
 
-let handleUpdate telegramUser creator event newState =
-  ()
-
-let updateArrived config dbContext upContext =
+let updateArrived dbContext upContext =
   asyncOption
     { let! user = tryGetUser upContext
       let! creator = getCreatorAsync dbContext user.Id
       let! event = tryGetEvent upContext
       let newState = updateState creator.BotState event
+      let config = upContext.Config
 
-      handleUpdate user creator event newState }
+      handleUpdate user creator event newState config }
   |> Async.Ignore
   |> Async.StartImmediate
