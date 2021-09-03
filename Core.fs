@@ -5,25 +5,25 @@ module InsightClub.Creator.Bot.Core
 type Text = string
 type FilePath = string
 type CourseName = string
-type CourseDescription = string
+type CourseDesc = string
 
 [<RequireQualifiedAccess>]
 type BotData =
   | Text of Text
   | Voice of FilePath
 
-type CourseDataAccumulator =
+type BotDataAccumulator =
   { Name: CourseName
-    Description: CourseDescription
+    Desc: CourseDesc
     Blocks: BotData list }
 
 [<RequireQualifiedAccess>]
 type BotState =
   | Inactive
   | Idle
-  | NewCoursePendingName
-  | NewCoursePendingDesc of CourseName
-  | NewCourseAccumulator of CourseDataAccumulator
+  | PendingName
+  | PendingDesc of CourseName
+  | PendingData of BotDataAccumulator
 
 [<RequireQualifiedAccess>]
 type BotCommand =
@@ -53,54 +53,54 @@ let updateInactive =
 let updateIdle =
   function
   | BotEvent.CommandReceived BotCommand.New ->
-    BotState.NewCoursePendingName
+    BotState.PendingName
 
   | _ ->
     BotState.Idle
 
-let updateNewCoursePendingName =
+let updatePendingName =
   function
   | BotEvent.CommandReceived BotCommand.Cancel ->
     BotState.Idle
 
   | BotEvent.DataReceived (BotData.Text courseName) ->
-    BotState.NewCoursePendingDesc courseName
+    BotState.PendingDesc courseName
 
   | _ ->
-    BotState.NewCoursePendingName
+    BotState.PendingName
 
-let updateNewCoursePendingDesc courseName =
+let updatePendingDesc courseName =
   function
   | BotEvent.CommandReceived BotCommand.Undo ->
-    BotState.NewCoursePendingName
+    BotState.PendingName
 
   | BotEvent.CommandReceived BotCommand.Skip ->
-    BotState.NewCourseAccumulator
+    BotState.PendingData
       { Name = courseName
-        Description = ""
+        Desc = ""
         Blocks = [] }
 
   | BotEvent.CommandReceived BotCommand.Cancel ->
     BotState.Idle
 
-  | BotEvent.DataReceived (BotData.Text courseDescription) ->
-    BotState.NewCourseAccumulator
+  | BotEvent.DataReceived (BotData.Text courseDesc) ->
+    BotState.PendingData
       { Name = courseName
-        Description = courseDescription
+        Desc = courseDesc
         Blocks = [] }
 
   | _ ->
-    BotState.NewCoursePendingDesc courseName
+    BotState.PendingDesc courseName
 
-let updateNewCourseAccumulator acc =
+let updatePendingData acc =
   function
   | BotEvent.CommandReceived BotCommand.Undo ->
     match acc.Blocks with
     | [] ->
-      BotState.NewCoursePendingDesc acc.Name
+      BotState.PendingDesc acc.Name
 
     | _ :: xs ->
-      BotState.NewCourseAccumulator acc
+      BotState.PendingData acc
 
   | BotEvent.CommandReceived BotCommand.Cancel ->
     BotState.Idle
@@ -113,17 +113,17 @@ let updateNewCourseAccumulator acc =
       { acc with
           Blocks = (BotData.Text text) :: acc.Blocks }
 
-    BotState.NewCourseAccumulator newAcc
+    BotState.PendingData newAcc
 
   | BotEvent.DataReceived (BotData.Voice filePath) ->
     let newAcc =
       { acc with
           Blocks = (BotData.Voice filePath) :: acc.Blocks }
 
-    BotState.NewCourseAccumulator newAcc
+    BotState.PendingData newAcc
 
   | _ ->
-    BotState.NewCourseAccumulator acc
+    BotState.PendingData acc
 
 let updateState state event =
   match state with
@@ -133,11 +133,11 @@ let updateState state event =
   | BotState.Idle ->
     updateIdle event
 
-  | BotState.NewCoursePendingName ->
-    updateNewCoursePendingName event
+  | BotState.PendingName ->
+    updatePendingName event
 
-  | BotState.NewCoursePendingDesc courseName ->
-    updateNewCoursePendingDesc courseName event
+  | BotState.PendingDesc courseName ->
+    updatePendingDesc courseName event
 
-  | BotState.NewCourseAccumulator acc ->
-    updateNewCourseAccumulator acc event
+  | BotState.PendingData acc ->
+    updatePendingData acc event
