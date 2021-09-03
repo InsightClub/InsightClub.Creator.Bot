@@ -44,18 +44,18 @@ let startBot
       "Bot started! Listening to %s"
       appConfig.Server.Listen
 
-  let setWebHook () =
+  let setWebhook () =
     setWebhookBase webhookUrl None None None
     |> api botConfig
     |> Async.map (Result.map ignore >> Result.mapError printError)
 
-  let start () =
+  let startBot () =
     printStarted ()
     startBot botConfig (updateArrived dbContext) None
 
   asyncResult
-    { do! setWebHook ()
-      do! start () }
+    { do! setWebhook ()
+      do! startBot () }
   |> Async.Ignore
 
 [<EntryPoint>]
