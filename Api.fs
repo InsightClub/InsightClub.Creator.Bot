@@ -32,7 +32,7 @@ let commands =
       ("/cancel", BotCommand.Cancel)
       ("/finish", BotCommand.Finish) ]
 
-let tryGetEvent ctx =
+let getEvent ctx =
   match ctx.Update.Message with
   | Some { Text = Some text } ->
     let textData =
@@ -43,16 +43,14 @@ let tryGetEvent ctx =
     |> Map.tryFind text
     |> Option.map BotEvent.CommandReceived
     |> Option.defaultValue textData
-    |> Some
 
   | Some { Voice = Some voice } ->
     voice.FileId
     |> BotData.Voice
     |> BotEvent.DataReceived
-    |> Some
 
   | _ ->
-    None
+    BotEvent.UnknownReceived
 
 let tryGetUser ctx =
   ctx.Update.Message
@@ -62,7 +60,7 @@ let updateArrived dbContext upContext =
   asyncOption
     { let! user = tryGetUser upContext
       let! creator = getCreatorAsync dbContext user.Id
-      let! event = tryGetEvent upContext
+      let event = getEvent upContext
       let newState = updateState creator.BotState event
       let config = upContext.Config
 

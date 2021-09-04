@@ -39,6 +39,7 @@ type BotCommand =
 type BotEvent =
   | CommandReceived of BotCommand
   | DataReceived of BotData
+  | UnknownReceived
 
 // Values
 let initialState = BotState.Inactive
