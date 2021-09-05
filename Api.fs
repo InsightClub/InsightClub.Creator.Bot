@@ -6,21 +6,9 @@ open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
 open FsToolkit.ErrorHandling
 open Core
+open Model
 open Repo
 
-
-// Helpers
-let apiIgnore config req =
-  req
-  |> api config
-  |> Async.Ignore
-
-let sendMessageAsync config chatId message =
-  sendMessage chatId message
-  |> apiIgnore config
-
-let handleUpdate user entity event newState config =
-  ()
 
 let commands =
   Map.ofList
@@ -55,6 +43,18 @@ let getEvent ctx =
 let tryGetUser ctx =
   ctx.Update.Message
   |> Option.bind (fun m -> m.From)
+
+let apiIgnore config req =
+  req
+  |> api config
+  |> Async.Ignore
+
+let sendMessageAsync config chatId message =
+  sendMessage chatId message
+  |> apiIgnore config
+
+let handleUpdate user entity event newState config =
+  ()
 
 let updateArrived dbContext upContext =
   asyncOption
