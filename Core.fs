@@ -39,7 +39,25 @@ type BotCommand =
 type BotEvent =
   | CommandReceived of BotCommand
   | DataReceived of BotData
-  | UnknownReceived
+  | UnsupportedReceived
+
+[<RequireQualifiedAccess>]
+type BotIntent =
+  | Ignore
+  | ShowHelp
+  | ReportUnsupported
+  | ReportStarted
+  | ReportCourseStarted
+  | ReportCourseCanceled
+  | ReportNameSet
+  | ReportNameUndone
+  | ReportDescSkipped
+  | ReportDescSet
+  | ReportDescUndone
+  | ReportDataUndone
+  | ReportDataTextSet
+  | ReportDataVoiceSet
+  | ReportCourseFinished
 
 // Values
 let initialState = BotState.Inactive
@@ -47,84 +65,98 @@ let initialState = BotState.Inactive
 let updateInactive =
   function
   | BotEvent.CommandReceived BotCommand.Start ->
-    BotState.Idle
+    BotState.Idle, BotIntent.ReportStarted
   | _ ->
-    BotState.Inactive
+    BotState.Inactive, BotIntent.Ignore
 
 let updateIdle =
   function
   | BotEvent.CommandReceived BotCommand.New ->
-    BotState.PendingName
+    BotState.PendingName, BotIntent.ReportStarted
+
+  | BotEvent.CommandReceived BotCommand.Help ->
+    BotState.Idle, BotIntent.ShowHelp
 
   | _ ->
-    BotState.Idle
+    BotState.Idle, BotIntent.ReportUnsupported
 
 let updatePendingName =
   function
   | BotEvent.CommandReceived BotCommand.Cancel ->
-    BotState.Idle
+    BotState.Idle, BotIntent.ReportCourseCanceled
 
   | BotEvent.DataReceived (BotData.Text courseName) ->
-    BotState.PendingDesc courseName
+    BotState.PendingDesc courseName, BotIntent.ReportNameSet
+
+  | BotEvent.CommandReceived BotCommand.Help ->
+    BotState.PendingName, BotIntent.ShowHelp
 
   | _ ->
-    BotState.PendingName
+    BotState.PendingName, BotIntent.ReportUnsupported
 
 let updatePendingDesc courseName =
   function
   | BotEvent.CommandReceived BotCommand.Undo ->
-    BotState.PendingName
+    BotState.PendingName, BotIntent.ReportNameUndone
 
   | BotEvent.CommandReceived BotCommand.Skip ->
     BotState.PendingData
       { Name = courseName
         Desc = ""
         Blocks = [] }
+    , BotIntent.ReportDescSkipped
 
   | BotEvent.CommandReceived BotCommand.Cancel ->
-    BotState.Idle
+    BotState.Idle, BotIntent.ReportCourseCanceled
 
   | BotEvent.DataReceived (BotData.Text courseDesc) ->
     BotState.PendingData
       { Name = courseName
         Desc = courseDesc
         Blocks = [] }
+    , BotIntent.ReportDescSet
+
+  | BotEvent.CommandReceived BotCommand.Help ->
+    BotState.PendingDesc courseName, BotIntent.ShowHelp
 
   | _ ->
-    BotState.PendingDesc courseName
+    BotState.PendingDesc courseName, BotIntent.ReportUnsupported
 
 let updatePendingData acc =
   function
   | BotEvent.CommandReceived BotCommand.Undo ->
     match acc.Blocks with
     | [] ->
-      BotState.PendingDesc acc.Name
+      BotState.PendingDesc acc.Name, BotIntent.ReportDescUndone
 
     | _ :: xs ->
-      BotState.PendingData acc
+      BotState.PendingData acc, BotIntent.ReportDataUndone
 
   | BotEvent.CommandReceived BotCommand.Cancel ->
-    BotState.Idle
-
-  | BotEvent.CommandReceived BotCommand.Finish ->
-    BotState.Idle
+    BotState.Idle, BotIntent.ReportCourseCanceled
 
   | BotEvent.DataReceived (BotData.Text text) ->
     let newAcc =
       { acc with
           Blocks = (BotData.Text text) :: acc.Blocks }
 
-    BotState.PendingData newAcc
+    BotState.PendingData newAcc, BotIntent.ReportDataTextSet
 
   | BotEvent.DataReceived (BotData.Voice filePath) ->
     let newAcc =
       { acc with
           Blocks = (BotData.Voice filePath) :: acc.Blocks }
 
-    BotState.PendingData newAcc
+    BotState.PendingData newAcc, BotIntent.ReportDataVoiceSet
+
+  | BotEvent.CommandReceived BotCommand.Finish ->
+    BotState.Idle, BotIntent.ReportCourseFinished
+
+  | BotEvent.CommandReceived BotCommand.Help ->
+    BotState.PendingData acc, BotIntent.ShowHelp
 
   | _ ->
-    BotState.PendingData acc
+    BotState.PendingData acc, BotIntent.ReportUnsupported
 
 let updateState state event =
   match state with

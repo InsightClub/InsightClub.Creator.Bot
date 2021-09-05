@@ -38,7 +38,7 @@ let getEvent ctx =
     |> BotEvent.DataReceived
 
   | _ ->
-    BotEvent.UnknownReceived
+    BotEvent.UnsupportedReceived
 
 let tryGetUser ctx =
   ctx.Update.Message
@@ -53,7 +53,7 @@ let sendMessageAsync config chatId message =
   sendMessage chatId message
   |> apiIgnore config
 
-let handleUpdate user entity event newState config =
+let handleIntent user entity newState intent config =
   ()
 
 let updateArrived dbContext upContext =
@@ -61,9 +61,9 @@ let updateArrived dbContext upContext =
     { let! user = tryGetUser upContext
       let! creator = getCreatorAsync dbContext user.Id
       let event = getEvent upContext
-      let newState = updateState creator.BotState event
+      let (newState, intent) = updateState creator.BotState event
       let config = upContext.Config
 
-      handleUpdate user creator event newState config }
+      handleIntent user creator newState intent config }
   |> Async.Ignore
   |> Async.StartImmediate
