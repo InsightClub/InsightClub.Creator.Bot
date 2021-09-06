@@ -66,7 +66,7 @@ type BotIntent =
   | ReportDataUndone of BlocksCount
   | ReportDataTextSet of BlocksCount
   | ReportDataVoiceSet of BlocksCount
-  | ReportCourseFinished
+  | SaveCourse of BotDataAccumulator
 
 type CheckNameReserved<'a> = CourseName -> (bool -> 'a) -> 'a
 
@@ -180,7 +180,7 @@ let updatePendingData callback acc event =
       BotIntent.ReportDataVoiceSet newAcc.Blocks.Length
 
     | BotEvent.CommandReceived BotCommand.Finish ->
-      BotState.Idle, BotIntent.ReportCourseFinished
+      BotState.Idle, BotIntent.SaveCourse acc
 
     | BotEvent.CommandReceived BotCommand.Help ->
       BotState.PendingData acc, BotIntent.ShowHelp Help.PendingData
