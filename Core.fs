@@ -68,109 +68,110 @@ type BotServices<'a> =
 // Values
 let initialState = BotState.Inactive
 
-let updateInactive callback =
-  function
-  | BotEvent.CommandReceived BotCommand.Start ->
-    callback BotState.Idle BotIntent.ReportStarted
-  | _ ->
-    callback BotState.Inactive BotIntent.Ignore
+let updateInactive callback event =
+  ( match event with
+    | BotEvent.CommandReceived BotCommand.Start ->
+      BotState.Idle, BotIntent.ReportStarted
+    | _ ->
+      BotState.Inactive, BotIntent.Ignore )
+  |> callback
 
-let updateIdle callback =
-  function
-  | BotEvent.CommandReceived BotCommand.New ->
-    callback BotState.PendingName BotIntent.ReportStarted
+let updateIdle callback event =
+  ( match event with
+    | BotEvent.CommandReceived BotCommand.New ->
+      BotState.PendingName, BotIntent.ReportStarted
 
-  | BotEvent.CommandReceived BotCommand.Help ->
-    callback BotState.Idle BotIntent.ShowHelp
+    | BotEvent.CommandReceived BotCommand.Help ->
+      BotState.Idle, BotIntent.ShowHelp
 
-  | _ ->
-    callback BotState.Idle BotIntent.ReportUnsupported
+    | _ ->
+      BotState.Idle, BotIntent.ReportUnsupported )
+  |> callback
 
-let updatePendingName callback checkNameReserved =
-  function
+let updatePendingName callback checkNameReserved event =
+  match event with
   | BotEvent.CommandReceived BotCommand.Cancel ->
-    callback BotState.Idle BotIntent.ReportCourseCanceled
+    callback (BotState.Idle, BotIntent.ReportCourseCanceled)
 
   | BotEvent.DataReceived (BotData.Text courseName) ->
     let answer isReserved =
       if isReserved
-      then callback BotState.PendingName BotIntent.ReportNameReserved
-      else callback (BotState.PendingDesc courseName) BotIntent.ReportNameSet
+      then callback (BotState.PendingName, BotIntent.ReportNameReserved)
+      else callback (BotState.PendingDesc courseName, BotIntent.ReportNameSet)
 
     checkNameReserved courseName answer
 
   | BotEvent.CommandReceived BotCommand.Help ->
-    callback BotState.PendingName BotIntent.ShowHelp
+    callback (BotState.PendingName, BotIntent.ShowHelp)
 
   | _ ->
-    callback BotState.PendingName BotIntent.ReportUnsupported
+    callback (BotState.PendingName, BotIntent.ReportUnsupported)
 
-let updatePendingDesc callback courseName =
-  function
-  | BotEvent.CommandReceived BotCommand.Undo ->
-    callback BotState.PendingName BotIntent.ReportNameUndone
+let updatePendingDesc callback courseName event =
+  ( match event with
+    | BotEvent.CommandReceived BotCommand.Undo ->
+      BotState.PendingName, BotIntent.ReportNameUndone
 
-  | BotEvent.CommandReceived BotCommand.Skip ->
-    let nextState =
+    | BotEvent.CommandReceived BotCommand.Skip ->
       BotState.PendingData
         { Name = courseName
           Desc = ""
           Blocks = [] }
+      , BotIntent.ReportDescSkipped
 
-    callback nextState BotIntent.ReportDescSkipped
+    | BotEvent.CommandReceived BotCommand.Cancel ->
+      BotState.Idle, BotIntent.ReportCourseCanceled
 
-  | BotEvent.CommandReceived BotCommand.Cancel ->
-    callback BotState.Idle BotIntent.ReportCourseCanceled
-
-  | BotEvent.DataReceived (BotData.Text courseDesc) ->
-    let nextState =
+    | BotEvent.DataReceived (BotData.Text courseDesc) ->
       BotState.PendingData
         { Name = courseName
           Desc = courseDesc
           Blocks = [] }
-    callback nextState BotIntent.ReportDescSet
+      , BotIntent.ReportDescSet
 
-  | BotEvent.CommandReceived BotCommand.Help ->
-    callback (BotState.PendingDesc courseName) BotIntent.ShowHelp
+    | BotEvent.CommandReceived BotCommand.Help ->
+      BotState.PendingDesc courseName, BotIntent.ShowHelp
 
-  | _ ->
-    callback (BotState.PendingDesc courseName) BotIntent.ReportUnsupported
+    | _ ->
+      BotState.PendingDesc courseName, BotIntent.ReportUnsupported )
+  |> callback
 
-let updatePendingData callback acc =
-  function
-  | BotEvent.CommandReceived BotCommand.Undo ->
-    match acc.Blocks with
-    | [] ->
-      callback (BotState.PendingDesc acc.Name) BotIntent.ReportDescUndone
+let updatePendingData callback acc event =
+  ( match event with
+    | BotEvent.CommandReceived BotCommand.Undo ->
+      match acc.Blocks with
+      | [] ->
+        BotState.PendingDesc acc.Name, BotIntent.ReportDescUndone
 
-    | _ :: xs ->
-      callback (BotState.PendingData acc) BotIntent.ReportDataUndone
+      | _ :: xs ->
+        BotState.PendingData acc, BotIntent.ReportDataUndone
 
-  | BotEvent.CommandReceived BotCommand.Cancel ->
-    callback BotState.Idle BotIntent.ReportCourseCanceled
+    | BotEvent.CommandReceived BotCommand.Cancel ->
+      BotState.Idle, BotIntent.ReportCourseCanceled
 
-  | BotEvent.DataReceived (BotData.Text text) ->
-    let newAcc =
-      { acc with
-          Blocks = (BotData.Text text) :: acc.Blocks }
+    | BotEvent.DataReceived (BotData.Text text) ->
+      let newAcc =
+        { acc with
+            Blocks = (BotData.Text text) :: acc.Blocks }
 
-    callback (BotState.PendingData newAcc) BotIntent.ReportDataTextSet
+      BotState.PendingData newAcc, BotIntent.ReportDataTextSet
 
-  | BotEvent.DataReceived (BotData.Voice filePath) ->
-    let newAcc =
-      { acc with
-          Blocks = (BotData.Voice filePath) :: acc.Blocks }
+    | BotEvent.DataReceived (BotData.Voice filePath) ->
+      let newAcc =
+        { acc with
+            Blocks = (BotData.Voice filePath) :: acc.Blocks }
 
-    callback (BotState.PendingData newAcc) BotIntent.ReportDataVoiceSet
+      BotState.PendingData newAcc, BotIntent.ReportDataVoiceSet
 
-  | BotEvent.CommandReceived BotCommand.Finish ->
-    callback BotState.Idle BotIntent.ReportCourseFinished
+    | BotEvent.CommandReceived BotCommand.Finish ->
+      BotState.Idle, BotIntent.ReportCourseFinished
 
-  | BotEvent.CommandReceived BotCommand.Help ->
-    callback (BotState.PendingData acc) BotIntent.ShowHelp
+    | BotEvent.CommandReceived BotCommand.Help ->
+      BotState.PendingData acc, BotIntent.ShowHelp
 
-  | _ ->
-    callback (BotState.PendingData acc) BotIntent.ReportUnsupported
+    | _ ->
+      BotState.PendingData acc, BotIntent.ReportUnsupported )
+  |> callback
 
 let updateState callback services state event =
   match state with

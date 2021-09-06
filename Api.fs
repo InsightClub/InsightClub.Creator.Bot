@@ -66,14 +66,12 @@ let services =
   }
 
 let updateArrived dbContext upContext =
-  let callback = fun s i -> Async.singleton (s, i)
-
   asyncOption
     { let! user = tryGetUser upContext
       let! creator = getCreatorAsync dbContext user.Id
       let event = getEvent upContext
       let! newState, intent =
-        updateState callback services creator.BotState event
+        updateState Async.singleton services creator.BotState event
 
       handleIntent user creator newState intent upContext.Config }
   |> Async.Ignore
