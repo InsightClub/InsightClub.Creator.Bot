@@ -39,3 +39,17 @@ let updateCreator (ctx: Context) creator =
 let checkCourseNameReserved (ctx: Context) name =
   ctx.Courses.AnyAsync(fun c -> c.CourseName = name)
   |> Async.AwaitTask
+
+let addCourse (ctx: Context) (course: Course) (blocks: Block list) =
+  async
+    { do! addEntityAsync ctx course
+      do! saveChangesAsync ctx
+
+      let blocks =
+        blocks
+        |> List.map
+            ( fun b ->
+                { b with CourseId = course.CourseId } )
+
+      do! addEntityRangeAsync ctx blocks
+      do! saveChangesAsync ctx }
