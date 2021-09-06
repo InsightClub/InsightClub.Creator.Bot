@@ -144,7 +144,10 @@ let updatePendingData callback acc event =
         BotState.PendingDesc acc.Name, BotIntent.ReportDescUndone
 
       | _ :: xs ->
-        BotState.PendingData acc, BotIntent.ReportDataUndone
+        let newAcc =
+          { acc with Blocks = xs }
+
+        BotState.PendingData newAcc, BotIntent.ReportDataUndone
 
     | BotEvent.CommandReceived BotCommand.Cancel ->
       BotState.Idle, BotIntent.ReportCourseCanceled
