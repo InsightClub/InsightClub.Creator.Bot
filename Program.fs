@@ -51,7 +51,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (updateArrived dbContext) None
+    startBot botConfig (updateArrived botConfig dbContext) None
 
   asyncResult
     { do! setWebhook ()
