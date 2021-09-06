@@ -87,7 +87,7 @@ let updateInactive callback event =
 let updateIdle callback event =
   ( match event with
     | BotEvent.CommandReceived BotCommand.New ->
-      BotState.PendingName, BotIntent.ReportStarted
+      BotState.PendingName, BotIntent.ReportCourseStarted
 
     | BotEvent.CommandReceived BotCommand.Help ->
       BotState.Idle, BotIntent.ShowHelp Help.Idle
