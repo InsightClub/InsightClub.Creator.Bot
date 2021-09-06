@@ -62,7 +62,7 @@ type BotIntent =
   | ReportDataVoiceSet
   | ReportCourseFinished
 
-type CheckNameReserved = string -> Async<bool>
+type CheckNameReserved = string -> bool
 
 type BotServices =
   { checkNameReserved: CheckNameReserved }
@@ -73,109 +73,102 @@ let initialState = BotState.Inactive
 let updateInactive =
   function
   | BotEvent.CommandReceived BotCommand.Start ->
-    Async.pair BotState.Idle BotIntent.ReportStarted
+    BotState.Idle, BotIntent.ReportStarted
   | _ ->
-    Async.pair BotState.Inactive BotIntent.Ignore
+    BotState.Inactive, BotIntent.Ignore
 
 let updateIdle =
   function
   | BotEvent.CommandReceived BotCommand.New ->
-    Async.pair BotState.PendingName BotIntent.ReportStarted
+    BotState.PendingName, BotIntent.ReportStarted
 
   | BotEvent.CommandReceived BotCommand.Help ->
-    Async.pair BotState.Idle BotIntent.ShowHelp
+    BotState.Idle, BotIntent.ShowHelp
 
   | _ ->
-    Async.pair BotState.Idle BotIntent.ReportUnsupported
+    BotState.Idle, BotIntent.ReportUnsupported
 
 let updatePendingName checkNameReserved =
   function
   | BotEvent.CommandReceived BotCommand.Cancel ->
-    Async.pair BotState.Idle BotIntent.ReportCourseCanceled
+    BotState.Idle, BotIntent.ReportCourseCanceled
 
   | BotEvent.DataReceived (BotData.Text courseName) ->
-    async
-      { let! reserved = checkNameReserved courseName
-        if reserved then
-          return
-            BotState.PendingName,
-            BotIntent.ReportNameReserved
-        else
-          return
-            BotState.PendingDesc courseName,
-            BotIntent.ReportNameSet }
+    let reserved = checkNameReserved courseName
+
+    if reserved
+    then BotState.PendingName, BotIntent.ReportNameReserved
+    else BotState.PendingDesc courseName, BotIntent.ReportNameSet
 
   | BotEvent.CommandReceived BotCommand.Help ->
-    Async.pair BotState.PendingName BotIntent.ShowHelp
+    BotState.PendingName, BotIntent.ShowHelp
 
   | _ ->
-    Async.pair BotState.PendingName BotIntent.ReportUnsupported
+    BotState.PendingName, BotIntent.ReportUnsupported
 
 let updatePendingDesc courseName =
   function
   | BotEvent.CommandReceived BotCommand.Undo ->
-    Async.pair BotState.PendingName BotIntent.ReportNameUndone
+    BotState.PendingName, BotIntent.ReportNameUndone
 
   | BotEvent.CommandReceived BotCommand.Skip ->
-    Async.pair
-      ( BotState.PendingData
-          { Name = courseName
-            Desc = ""
-            Blocks = [] } )
-      BotIntent.ReportDescSkipped
+    BotState.PendingData
+      { Name = courseName
+        Desc = ""
+        Blocks = [] }
+    , BotIntent.ReportDescSkipped
 
   | BotEvent.CommandReceived BotCommand.Cancel ->
-    Async.pair BotState.Idle BotIntent.ReportCourseCanceled
+    BotState.Idle, BotIntent.ReportCourseCanceled
 
   | BotEvent.DataReceived (BotData.Text courseDesc) ->
-    Async.pair
-      ( BotState.PendingData
-          { Name = courseName
-            Desc = courseDesc
-            Blocks = [] } )
-      BotIntent.ReportDescSet
+    BotState.PendingData
+      { Name = courseName
+        Desc = courseDesc
+        Blocks = [] }
+    , BotIntent.ReportDescSet
 
   | BotEvent.CommandReceived BotCommand.Help ->
-    Async.pair (BotState.PendingDesc courseName) BotIntent.ShowHelp
+    BotState.PendingDesc courseName, BotIntent.ShowHelp
 
   | _ ->
-    Async.pair (BotState.PendingDesc courseName) BotIntent.ReportUnsupported
+    BotState.PendingDesc courseName, BotIntent.ReportUnsupported
 
 let updatePendingData acc =
   function
   | BotEvent.CommandReceived BotCommand.Undo ->
     match acc.Blocks with
     | [] ->
-      Async.pair (BotState.PendingDesc acc.Name) BotIntent.ReportDescUndone
+      BotState.PendingDesc acc.Name, BotIntent.ReportDescUndone
 
     | _ :: xs ->
-      Async.pair (BotState.PendingData acc) BotIntent.ReportDataUndone
+      BotState.PendingData acc, BotIntent.ReportDataUndone
 
   | BotEvent.CommandReceived BotCommand.Cancel ->
-    Async.pair BotState.Idle BotIntent.ReportCourseCanceled
+    BotState.Idle, BotIntent.ReportCourseCanceled
 
   | BotEvent.DataReceived (BotData.Text text) ->
     let newAcc =
       { acc with
           Blocks = (BotData.Text text) :: acc.Blocks }
 
-    Async.pair (BotState.PendingData newAcc) BotIntent.ReportDataTextSet
+    BotState.PendingData newAcc, BotIntent.ReportDataTextSet
 
   | BotEvent.DataReceived (BotData.Voice filePath) ->
     let newAcc =
       { acc with
           Blocks = (BotData.Voice filePath) :: acc.Blocks }
 
-    Async.pair (BotState.PendingData newAcc) BotIntent.ReportDataVoiceSet
+    BotState.PendingData newAcc, BotIntent.ReportDataVoiceSet
 
   | BotEvent.CommandReceived BotCommand.Finish ->
-    Async.pair BotState.Idle BotIntent.ReportCourseFinished
+    BotState.Idle, BotIntent.ReportCourseFinished
 
   | BotEvent.CommandReceived BotCommand.Help ->
-    Async.pair (BotState.PendingData acc) BotIntent.ShowHelp
+    BotState.PendingData acc, BotIntent.ShowHelp
 
   | _ ->
-    Async.pair (BotState.PendingData acc) BotIntent.ReportUnsupported
+    BotState.PendingData acc, BotIntent.ReportUnsupported
 
 let updateState services state event =
   match state with

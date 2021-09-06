@@ -58,14 +58,14 @@ let handleIntent user entity newState intent config =
 
 // Stub
 let services =
-  { checkNameReserved = fun _ -> Async.singleton false }
+  { checkNameReserved = fun _ -> false }
 
 let updateArrived dbContext upContext =
   asyncOption
     { let! user = tryGetUser upContext
       let! creator = getCreatorAsync dbContext user.Id
       let event = getEvent upContext
-      let! newState, intent = updateState services creator.BotState event
+      let newState, intent = updateState services creator.BotState event
       let config = upContext.Config
 
       handleIntent user creator newState intent config }
