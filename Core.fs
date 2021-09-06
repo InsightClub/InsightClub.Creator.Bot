@@ -60,7 +60,7 @@ type BotIntent =
   | ReportDataVoiceSet
   | ReportCourseFinished
 
-type CheckNameReserved<'a> = Text -> (bool -> 'a) -> 'a
+type CheckNameReserved<'a> = CourseName -> (bool -> 'a) -> 'a
 
 type BotServices<'a> =
   { checkNameReserved: CheckNameReserved<'a> }
