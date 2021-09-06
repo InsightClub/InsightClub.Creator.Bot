@@ -6,6 +6,7 @@ type Text = string
 type FilePath = string
 type CourseName = string
 type CourseDesc = string
+type BlocksCount = int
 
 [<RequireQualifiedAccess>]
 type BotData =
@@ -42,10 +43,17 @@ type BotEvent =
   | UnsupportedReceived
 
 [<RequireQualifiedAccess>]
+type Help =
+  | Idle
+  | PendingName
+  | PendingDesc
+  | PendingData
+
+[<RequireQualifiedAccess>]
 type BotIntent =
   | Ignore
-  | ShowHelp
-  | ReportUnsupported
+  | ShowHelp of Help
+  | ReportUnsupported of Help
   | ReportStarted
   | ReportCourseStarted
   | ReportCourseCanceled
@@ -55,9 +63,9 @@ type BotIntent =
   | ReportDescSkipped
   | ReportDescSet
   | ReportDescUndone
-  | ReportDataUndone
-  | ReportDataTextSet
-  | ReportDataVoiceSet
+  | ReportDataUndone of BlocksCount
+  | ReportDataTextSet of BlocksCount
+  | ReportDataVoiceSet of BlocksCount
   | ReportCourseFinished
 
 type CheckNameReserved<'a> = CourseName -> (bool -> 'a) -> 'a
@@ -82,10 +90,10 @@ let updateIdle callback event =
       BotState.PendingName, BotIntent.ReportStarted
 
     | BotEvent.CommandReceived BotCommand.Help ->
-      BotState.Idle, BotIntent.ShowHelp
+      BotState.Idle, BotIntent.ShowHelp Help.Idle
 
     | _ ->
-      BotState.Idle, BotIntent.ReportUnsupported )
+      BotState.Idle, BotIntent.ReportUnsupported Help.Idle )
   |> callback
 
 let updatePendingName callback checkNameReserved event =
@@ -102,10 +110,11 @@ let updatePendingName callback checkNameReserved event =
     checkNameReserved courseName answer
 
   | BotEvent.CommandReceived BotCommand.Help ->
-    callback (BotState.PendingName, BotIntent.ShowHelp)
+    callback (BotState.PendingName, BotIntent.ShowHelp Help.PendingName)
 
   | _ ->
-    callback (BotState.PendingName, BotIntent.ReportUnsupported)
+    callback
+      (BotState.PendingName, BotIntent.ReportUnsupported Help.PendingName)
 
 let updatePendingDesc callback courseName event =
   ( match event with
@@ -130,10 +139,11 @@ let updatePendingDesc callback courseName event =
       , BotIntent.ReportDescSet
 
     | BotEvent.CommandReceived BotCommand.Help ->
-      BotState.PendingDesc courseName, BotIntent.ShowHelp
+      BotState.PendingDesc courseName, BotIntent.ShowHelp Help.PendingDesc
 
     | _ ->
-      BotState.PendingDesc courseName, BotIntent.ReportUnsupported )
+      BotState.PendingDesc courseName,
+      BotIntent.ReportUnsupported Help.PendingDesc )
   |> callback
 
 let updatePendingData callback acc event =
@@ -147,7 +157,8 @@ let updatePendingData callback acc event =
         let newAcc =
           { acc with Blocks = xs }
 
-        BotState.PendingData newAcc, BotIntent.ReportDataUndone
+        BotState.PendingData newAcc,
+        BotIntent.ReportDataUndone newAcc.Blocks.Length
 
     | BotEvent.CommandReceived BotCommand.Cancel ->
       BotState.Idle, BotIntent.ReportCourseCanceled
@@ -157,23 +168,25 @@ let updatePendingData callback acc event =
         { acc with
             Blocks = (BotData.Text text) :: acc.Blocks }
 
-      BotState.PendingData newAcc, BotIntent.ReportDataTextSet
+      BotState.PendingData newAcc,
+      BotIntent.ReportDataTextSet newAcc.Blocks.Length
 
     | BotEvent.DataReceived (BotData.Voice filePath) ->
       let newAcc =
         { acc with
             Blocks = (BotData.Voice filePath) :: acc.Blocks }
 
-      BotState.PendingData newAcc, BotIntent.ReportDataVoiceSet
+      BotState.PendingData newAcc,
+      BotIntent.ReportDataVoiceSet newAcc.Blocks.Length
 
     | BotEvent.CommandReceived BotCommand.Finish ->
       BotState.Idle, BotIntent.ReportCourseFinished
 
     | BotEvent.CommandReceived BotCommand.Help ->
-      BotState.PendingData acc, BotIntent.ShowHelp
+      BotState.PendingData acc, BotIntent.ShowHelp Help.PendingData
 
     | _ ->
-      BotState.PendingData acc, BotIntent.ReportUnsupported )
+      BotState.PendingData acc, BotIntent.ReportUnsupported Help.PendingData )
   |> callback
 
 let updateState callback services state event =
