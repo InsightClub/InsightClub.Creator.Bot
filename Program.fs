@@ -6,7 +6,6 @@ open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
 open FsToolkit.ErrorHandling
-open Helpers
 open Config
 open Context
 open Api
@@ -75,27 +74,31 @@ let main _ =
       <| "Error connecting to database. "
       +  "Probably the problem is with connection details."
 
-  // Run synchronously to block the tread
-  // Don't use Async.StartImmediate
-  // or program will immediately shut after the launch
-  asyncOption
-    { let! config =
-        filePath
-        |> Config.tryLoad
-        |> Option.onNone printNoFile
+  let configOption = Config.tryLoad filePath
 
-      use listener = new HttpListener()
-      listener.Prefixes.Add(config.Server.Listen)
+  match configOption with
+  | Some config ->
+    use listener = new HttpListener()
+    listener.Prefixes.Add(config.Server.Listen)
 
-      use context =
-        config
-        |> Config.connStr
-        |> Context.create
+    use context =
+      config
+      |> Config.connStr
+      |> Context.create
 
-      if Context.canConnect context
-      then do! startBot config listener context
-      else printNoConnection () }
-  |> Async.Ignore
-  |> Async.RunSynchronously
+    if Context.canConnect context then
+
+      // Run synchronously to block the tread
+      // Don't use Async.StartImmediate
+      // or program will immediately shut after the launch
+      startBot config listener context
+      |> Async.Ignore
+      |> Async.RunSynchronously
+
+    else
+      printNoConnection ()
+
+  | None ->
+    printNoFile()
 
   0 // Return an integer exit code

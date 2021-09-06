@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Helpers.fs" />
     <Compile Include="Core.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Model.fs" />

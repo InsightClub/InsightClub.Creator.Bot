@@ -3,7 +3,6 @@ module InsightClub.Creator.Bot.Repo
 open Microsoft.EntityFrameworkCore
 open EntityFrameworkCore.FSharp.DbContextHelpers
 open FsToolkit.ErrorHandling
-open Helpers
 open Core
 open Model
 open Context
