@@ -1,5 +1,6 @@
 module InsightClub.Creator.Bot.Repo
 
+open Microsoft.EntityFrameworkCore
 open EntityFrameworkCore.FSharp.DbContextHelpers
 open FsToolkit.ErrorHandling
 open Helpers
@@ -8,7 +9,7 @@ open Model
 open Context
 
 
-let getCreatorAsync (ctx: Context) telegramId =
+let getOrAddCreator (ctx: Context) telegramId =
   let createOp =
     let creator =
       { CreatorId = 0
@@ -30,7 +31,11 @@ let getCreatorAsync (ctx: Context) telegramId =
       then return Option.get creatorOption
       else return! createOp }
 
-let updateCreatorAsync (ctx: Context) creator =
+let updateCreator (ctx: Context) creator =
   async
     { let! _ = updateEntityAsync ctx (fun c -> c.CreatorId :> obj) creator
       do! saveChangesAsync ctx }
+
+let checkCourseNameReserved (ctx: Context) name =
+  ctx.Courses.AnyAsync(fun c -> c.CourseName = name)
+  |> Async.AwaitTask

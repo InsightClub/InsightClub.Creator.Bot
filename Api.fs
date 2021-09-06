@@ -56,22 +56,22 @@ let sendMessageAsync config chatId message =
 let handleIntent user entity newState intent config =
   ()
 
-// Stub
-let services =
+let services ctx =
   { checkNameReserved =
     fun name answer ->
       async
-        { let! reserved = Async.singleton false
-          return! answer reserved }
-  }
+        { let! reserved = checkCourseNameReserved ctx name
+          return! answer reserved } }
 
 let updateArrived dbContext upContext =
+  let getOrAddCreator = getOrAddCreator dbContext
+  let updateState = updateState Async.singleton (services dbContext)
+
   asyncOption
     { let! user = tryGetUser upContext
-      let! creator = getCreatorAsync dbContext user.Id
+      let! creator = getOrAddCreator user.Id
       let event = getEvent upContext
-      let! newState, intent =
-        updateState Async.singleton services creator.BotState event
+      let! newState, intent = updateState creator.BotState event
 
       handleIntent user creator newState intent upContext.Config }
   |> Async.Ignore
