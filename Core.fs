@@ -92,9 +92,7 @@ let updatePendingName checkNameReserved =
     BotState.Idle, BotIntent.ReportCourseCanceled
 
   | BotEvent.DataReceived (BotData.Text courseName) ->
-    let reserved = checkNameReserved courseName
-
-    if reserved
+    if checkNameReserved courseName
     then BotState.PendingName, BotIntent.ReportNameReserved
     else BotState.PendingDesc courseName, BotIntent.ReportNameSet
 
