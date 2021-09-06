@@ -1,7 +1,5 @@
 module InsightClub.Creator.Bot.Core
 
-open Helpers
-
 
 // Types
 type Text = string
