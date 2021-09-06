@@ -76,8 +76,9 @@ let main _ =
 
   let configOption = Config.tryLoad filePath
 
-  match configOption with
-  | Some config ->
+  if configOption.IsSome then
+    let config = configOption.Value
+
     use listener = new HttpListener()
     listener.Prefixes.Add(config.Server.Listen)
 
@@ -98,7 +99,7 @@ let main _ =
     else
       printNoConnection ()
 
-  | None ->
-    printNoFile()
+  else
+    printNoFile ()
 
   0 // Return an integer exit code
