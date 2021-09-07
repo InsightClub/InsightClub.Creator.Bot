@@ -162,7 +162,8 @@ let createServices ctx =
         { let! reserved = checkCourseNameReserved ctx name
           return! answer reserved } }
 
-let updateArrived botConfig dbContext upContext =
+let updateArrived botConfig getContext upContext =
+  use dbContext = getContext ()
   let getOrAddCreator = getOrAddCreator dbContext
   let updateState = updateState Async.singleton (createServices dbContext)
   let handleIntent = handleIntent botConfig dbContext

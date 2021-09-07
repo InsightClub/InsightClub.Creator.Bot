@@ -14,7 +14,7 @@ open Api
 let startBot
   (appConfig: Config)
   (listener: HttpListener)
-  (dbContext: Context) =
+  (getContext: unit -> Context) =
   // YamlConfig adds additional '/' character at the end of urls
   // So don't prepend apiPath with '/'
   let apiPath = $"api/{appConfig.Token}"
@@ -50,7 +50,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (updateArrived botConfig dbContext) None
+    startBot botConfig (updateArrived botConfig getContext) None
 
   asyncResult
     { do! setWebhook ()
@@ -82,17 +82,17 @@ let main _ =
     use listener = new HttpListener()
     listener.Prefixes.Add(config.Server.Listen)
 
-    use context =
+    let getContext () =
       config
       |> Config.connStr
       |> Context.create
 
-    if Context.canConnect context then
+    if Context.canConnect <| getContext () then
 
       // Run synchronously to block the tread
       // Don't use Async.StartImmediate
       // or program will immediately shut after the launch
-      startBot config listener context
+      startBot config listener getContext
       |> Async.Ignore
       |> Async.RunSynchronously
 
