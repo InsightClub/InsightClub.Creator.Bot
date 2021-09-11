@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="nuget.config" />
     <Compile Include="Core.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Model.fs" />
@@ -27,6 +26,7 @@
     <None Include=".gitignore" />
     <None Include=".gitattributes" />
     <None Include=".editorconfig" />
+    <None Include="nuget.config" />
   </ItemGroup>
 
   <ItemGroup>
