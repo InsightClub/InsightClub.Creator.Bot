@@ -187,4 +187,3 @@ let updateArrived botConfig (getContext: unit -> Context) upContext =
 
       do! handleIntent botConfig dbContext chatId name creatorId intent }
   |> Async.Ignore
-  |> Async.StartImmediate
