@@ -8,6 +8,7 @@ open Funogram.Telegram.Types
 open FsToolkit.ErrorHandling
 open Core
 open Model
+open Context
 open Repo
 
 
@@ -162,28 +163,28 @@ let createServices ctx =
         { let! reserved = checkCourseNameReserved ctx name
           return! answer reserved } }
 
-let updateArrived botConfig getContext upContext =
-  use dbContext = getContext ()
-  let getOrAddCreator = getOrAddCreator dbContext
-  let updateState = updateState Async.singleton (createServices dbContext)
-  let handleIntent = handleIntent botConfig dbContext
-  let updateCreator = updateCreator dbContext
-
+let updateArrived botConfig (getContext: unit -> Context) upContext =
   asyncOption
-    { let! user = tryGetTelegramUser upContext
+    { use dbContext = getContext ()
+
+      let! user = tryGetTelegramUser upContext
       let chatId = user.Id
       let name = user.FirstName, user.LastName
 
-      let! creator = getOrAddCreator user.Id
+      let! creator = getOrAddCreator dbContext user.Id
       let creatorId = creator.CreatorId
 
       let event = getEvent upContext
 
-      let! nextState, intent = updateState creator.BotState event
+      let! nextState, intent =
+        updateState
+          Async.singleton
+          (createServices dbContext)
+          creator.BotState
+          event
 
-      do! updateCreator { creator with BotState = nextState }
+      do! updateCreator dbContext { creator with BotState = nextState }
 
-      do! handleIntent chatId name creatorId intent }
-
+      do! handleIntent botConfig dbContext chatId name creatorId intent }
   |> Async.Ignore
   |> Async.StartImmediate
