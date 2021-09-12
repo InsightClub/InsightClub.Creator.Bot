@@ -173,8 +173,9 @@ let updateArrived botConfig (getContext: unit -> BotContext) upContext =
       let chatId = user.Id
       let name = user.FirstName, user.LastName
 
-      let! creator = Repo.getOrAddCreator dbContext user.Id
-      let creatorId = creator.CreatorId
+      let initialStateJson = Json.serialize initialState
+
+      let! creator = Repo.getOrAddCreator dbContext initialStateJson user.Id
       let currentState = Json.deserialize creator.TelegramBotState
 
       let event = getEvent upContext
@@ -192,5 +193,12 @@ let updateArrived botConfig (getContext: unit -> BotContext) upContext =
           { creator with
               TelegramBotState = Json.serialize nextState }
 
-      do! handleIntent botConfig dbContext chatId name creatorId intent }
+      do!
+        handleIntent
+          botConfig
+          dbContext
+          chatId
+          name
+          creator.CreatorId
+          intent }
   |> Async.Ignore

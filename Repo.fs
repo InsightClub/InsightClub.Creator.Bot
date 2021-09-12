@@ -7,12 +7,12 @@ open EntityFrameworkCore.FSharp.DbContextHelpers
 open FsToolkit.ErrorHandling
 
 
-let getOrAddCreator (ctx: BotContext) telegramId =
+let getOrAddCreator (ctx: BotContext) initialState telegramId =
   let createOp =
     let creator =
       { CreatorId = Guid.NewGuid ()
         TelegramId = telegramId
-        TelegramBotState = "" }
+        TelegramBotState = initialState }
 
     async
       { do! addEntityAsync ctx creator
