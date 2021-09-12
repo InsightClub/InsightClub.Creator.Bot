@@ -6,15 +6,14 @@ open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
 open FsToolkit.ErrorHandling
-open Config
-open Context
-open Api
+open InsightClub.Creator.Bot.Config
+open InsightClub.Db
 
 
 let startBot
   (appConfig: Config)
   (listener: HttpListener)
-  (getContext: unit -> Context) =
+  (getContext: unit -> BotContext) =
   // YamlConfig adds additional '/' character at the end of urls
   // So don't prepend apiPath with '/'
   let apiPath = $"api/{appConfig.Token}"
@@ -50,7 +49,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (updateArrived botConfig getContext) None
+    startBot botConfig (Api.updateArrived botConfig getContext) None
 
   asyncResult
     { do! setWebhook ()
@@ -85,9 +84,9 @@ let main _ =
     let getContext () =
       config
       |> Config.connStr
-      |> Context.create
+      |> BotContext.create
 
-    if Context.canConnect <| getContext () then
+    if BotContext.canConnect <| getContext () then
 
       // Run synchronously to block the tread
       // Don't use Async.StartImmediate

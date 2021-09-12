@@ -1,16 +1,17 @@
 module InsightClub.Creator.Bot.Api
 
+open System
 open Funogram.Api
-open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
 open FsToolkit.ErrorHandling
-open Core
-open Model
-open Context
-open Repo
+open InsightClub.Db
+open InsightClub.Creator.Bot.Core
+open Microsoft.FSharpLu.Json
 
+
+module Json = Compact.Strict
 
 let tryGetTelegramUser ctx =
   ctx.Update.Message
@@ -129,22 +130,23 @@ let handleIntent config ctx chatId name creatorId =
 
   | BotIntent.SaveCourse acc ->
     let course =
-      { CourseId = 0
+      { CourseId = Guid.NewGuid ()
         CreatorId = creatorId
         CourseName = acc.Name
         CourseDescription = acc.Desc }
 
     let mapi i b =
-      let blockType, content =
+      let contentType, content =
         match b with
         | BotData.Text text ->
-          (BlockType.Text, text)
+          (ContentType.Text, text)
         | BotData.Voice filePath ->
-          (BlockType.Voice, filePath)
+          (ContentType.Voice, filePath)
 
-      { CourseId = 0
-        BlockIndex = i
-        BlockType = blockType
+      { CourseId = Guid.Empty
+        ContentBlockIndex = 0 // TODO: Use more than one block
+        ContentIndex = i
+        ContentType = contentType
         Content = content }
 
     let blocks =
@@ -153,17 +155,17 @@ let handleIntent config ctx chatId name creatorId =
       |> List.mapi mapi
 
     async
-      { do! addCourse ctx course blocks
+      { do! Repo.addCourse ctx course blocks
         do! sendMessage Message.PendingData.finish }
 
 let createServices ctx =
   { checkNameReserved =
     fun name answer ->
       async
-        { let! reserved = checkCourseNameReserved ctx name
+        { let! reserved = Repo.checkCourseNameReserved ctx name
           return! answer reserved } }
 
-let updateArrived botConfig (getContext: unit -> Context) upContext =
+let updateArrived botConfig (getContext: unit -> BotContext) upContext =
   asyncOption
     { use dbContext = getContext ()
 
@@ -171,8 +173,9 @@ let updateArrived botConfig (getContext: unit -> Context) upContext =
       let chatId = user.Id
       let name = user.FirstName, user.LastName
 
-      let! creator = getOrAddCreator dbContext user.Id
+      let! creator = Repo.getOrAddCreator dbContext user.Id
       let creatorId = creator.CreatorId
+      let currentState = Json.deserialize creator.TelegramBotState
 
       let event = getEvent upContext
 
@@ -180,10 +183,14 @@ let updateArrived botConfig (getContext: unit -> Context) upContext =
         updateState
           Async.singleton
           (createServices dbContext)
-          creator.BotState
+          currentState
           event
 
-      do! updateCreator dbContext { creator with BotState = nextState }
+      do!
+        Repo.updateCreator
+          dbContext
+          { creator with
+              TelegramBotState = Json.serialize nextState }
 
       do! handleIntent botConfig dbContext chatId name creatorId intent }
   |> Async.Ignore

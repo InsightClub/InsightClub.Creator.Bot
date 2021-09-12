@@ -2,6 +2,7 @@ module InsightClub.Creator.Bot.Message
 
 open System.Text.RegularExpressions
 
+
 // Clean
 let c s = Regex("\n[ ]+").Replace(s, "\n")
 let f = sprintf

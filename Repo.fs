@@ -1,19 +1,18 @@
 module InsightClub.Creator.Bot.Repo
 
+open System
+open InsightClub.Db
 open Microsoft.EntityFrameworkCore
 open EntityFrameworkCore.FSharp.DbContextHelpers
 open FsToolkit.ErrorHandling
-open Core
-open Model
-open Context
 
 
-let getOrAddCreator (ctx: Context) telegramId =
+let getOrAddCreator (ctx: BotContext) telegramId =
   let createOp =
     let creator =
-      { CreatorId = 0
+      { CreatorId = Guid.NewGuid ()
         TelegramId = telegramId
-        BotState = initialState }
+        TelegramBotState = "" }
 
     async
       { do! addEntityAsync ctx creator
@@ -30,19 +29,18 @@ let getOrAddCreator (ctx: Context) telegramId =
       then return Option.get creatorOption
       else return! createOp }
 
-let updateCreator (ctx: Context) creator =
+let updateCreator (ctx: BotContext) creator =
   async
     { let! _ = updateEntityAsync ctx (fun c -> c.CreatorId :> obj) creator
       do! saveChangesAsync ctx }
 
-let checkCourseNameReserved (ctx: Context) name =
+let checkCourseNameReserved (ctx: BotContext) name =
   ctx.Courses.AnyAsync(fun c -> c.CourseName = name)
   |> Async.AwaitTask
 
-let addCourse (ctx: Context) (course: Course) (blocks: Block list) =
+let addCourse (ctx: BotContext) (course: Course) (blocks: Content list) =
   async
     { do! addEntityAsync ctx course
-      do! saveChangesAsync ctx
 
       let blocks =
         blocks
