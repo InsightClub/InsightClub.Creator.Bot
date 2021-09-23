@@ -9,3 +9,4 @@ Db:
   Database: ""
   Username: ""
   Password: ""
+  Port: 5432

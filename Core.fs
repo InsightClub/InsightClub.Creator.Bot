@@ -2,206 +2,105 @@ module InsightClub.Creator.Bot.Core
 
 
 // Types
-type Text = string
-type FilePath = string
-type CourseName = string
-type CourseDesc = string
-type BlocksCount = int
+type CourseId = int
+type CourseTitle = string
 
-[<RequireQualifiedAccess>]
-type BotData =
-  | Text of Text
-  | Voice of FilePath
+module Inactive =
+  type Command = Start
 
-type BotDataAccumulator =
-  { Name: CourseName
-    Desc: CourseDesc
-    Blocks: BotData list }
+module Idle =
+  type Command = CreateCourse
+  type Context = Started | Canceled | Exited | Error
 
-[<RequireQualifiedAccess>]
+module CreatingCourse =
+  type Command = Cancel | CreateCourse of CourseTitle
+  type Context = Started | TitleReserved | Error
+
+module EditingCourse =
+  type Command = Exit
+
 type BotState =
   | Inactive
-  | Idle
-  | PendingName
-  | PendingDesc of CourseName
-  | PendingData of BotDataAccumulator
+  | Idle of Idle.Context
+  | CreatingCourse of CreatingCourse.Context
+  | EditingCourse of CourseId
 
-[<RequireQualifiedAccess>]
-type BotCommand =
-  | Start
-  | Help
-  | New
-  | Undo
-  | Skip
-  | Cancel
-  | Finish
+type Command<'c> = Recognized of 'c | Unknown
+type CommandGetter<'c> = unit -> Command<'c>
 
-[<RequireQualifiedAccess>]
-type BotEvent =
-  | CommandReceived of BotCommand
-  | DataReceived of BotData
-  | UnsupportedReceived
+type BotCommands =
+  { getInactive: CommandGetter<Inactive.Command>
+    getIdle: CommandGetter<Idle.Command>
+    getCreatingCourse: CommandGetter<CreatingCourse.Command>
+    getEditingCourse: CommandGetter<EditingCourse.Command> }
 
-[<RequireQualifiedAccess>]
-type Help =
-  | Idle
-  | PendingName
-  | PendingDesc
-  | PendingData
-
-[<RequireQualifiedAccess>]
-type BotIntent =
-  | Ignore
-  | ShowHelp of Help
-  | ReportUnsupported of Help
-  | ReportStarted
-  | ReportCourseStarted
-  | ReportCourseCanceled
-  | ReportNameReserved
-  | ReportNameSet
-  | ReportNameUndone
-  | ReportDescSkipped
-  | ReportDescSet
-  | ReportDescUndone
-  | ReportDataUndone of BlocksCount
-  | ReportDataTextSet of BlocksCount
-  | ReportDataVoiceSet of BlocksCount
-  | SaveCourse of BotDataAccumulator
-
-type CheckNameReserved<'a> = CourseName -> (bool -> 'a) -> 'a
+type Service<'p, 'a> = ('p -> 'a) -> 'a
 
 type BotServices<'a> =
-  { checkNameReserved: CheckNameReserved<'a> }
+  { isCourseTitleReserved: CourseTitle -> Service<bool, 'a>
+    createCourse: CourseTitle -> Service<CourseId, 'a> }
 
 // Values
-let initialState = BotState.Inactive
+let initial = Inactive
 
-let updateInactive callback event =
-  ( match event with
-    | BotEvent.CommandReceived BotCommand.Start ->
-      BotState.Idle, BotIntent.ReportStarted
-    | _ ->
-      BotState.Inactive, BotIntent.Ignore )
-  |> callback
+let private updateInactive callback =
+  function
+  | Recognized Inactive.Start ->
+    callback <| Idle Idle.Started
 
-let updateIdle callback event =
-  ( match event with
-    | BotEvent.CommandReceived BotCommand.New ->
-      BotState.PendingName, BotIntent.ReportCourseStarted
+  | Unknown ->
+    callback Inactive
 
-    | BotEvent.CommandReceived BotCommand.Help ->
-      BotState.Idle, BotIntent.ShowHelp Help.Idle
+let private updateIdle callback =
+  function
+  | Recognized Idle.CreateCourse ->
+    callback <| CreatingCourse CreatingCourse.Started
 
-    | _ ->
-      BotState.Idle, BotIntent.ReportUnsupported Help.Idle )
-  |> callback
+  | Unknown ->
+    callback <| Idle Idle.Error
 
-let updatePendingName callback checkNameReserved event =
-  match event with
-  | BotEvent.CommandReceived BotCommand.Cancel ->
-    callback (BotState.Idle, BotIntent.ReportCourseCanceled)
+let private updatePendingCourseTitle services callback =
+  function
+  | Recognized CreatingCourse.Cancel ->
+    callback <| Idle Idle.Canceled
 
-  | BotEvent.DataReceived (BotData.Text courseName) ->
-    let answer isReserved =
-      if isReserved
-      then callback (BotState.PendingName, BotIntent.ReportNameReserved)
-      else callback (BotState.PendingDesc courseName, BotIntent.ReportNameSet)
+  | Recognized (CreatingCourse.CreateCourse title) ->
+    ( function
+      | true  ->
+        callback <| CreatingCourse CreatingCourse.TitleReserved
 
-    checkNameReserved courseName answer
+      | false ->
+        EditingCourse
+        >> callback
+        |> services.createCourse title )
 
-  | BotEvent.CommandReceived BotCommand.Help ->
-    callback (BotState.PendingName, BotIntent.ShowHelp Help.PendingName)
+    |> services.isCourseTitleReserved title
 
-  | _ ->
-    callback
-      (BotState.PendingName, BotIntent.ReportUnsupported Help.PendingName)
+  | Unknown ->
+    callback <| CreatingCourse CreatingCourse.Error
 
-let updatePendingDesc callback courseName event =
-  ( match event with
-    | BotEvent.CommandReceived BotCommand.Undo ->
-      BotState.PendingName, BotIntent.ReportNameUndone
+let private updateEditingCourse callback courseId =
+  function
+  | Recognized EditingCourse.Exit ->
+    callback <| Idle Idle.Exited
 
-    | BotEvent.CommandReceived BotCommand.Skip ->
-      BotState.PendingData
-        { Name = courseName
-          Desc = ""
-          Blocks = [] }
-      , BotIntent.ReportDescSkipped
+  | Unknown ->
+    callback <| EditingCourse courseId
 
-    | BotEvent.CommandReceived BotCommand.Cancel ->
-      BotState.Idle, BotIntent.ReportCourseCanceled
+let update commands services callback =
+  function
+  | Inactive ->
+    commands.getInactive ()
+    |> updateInactive callback
 
-    | BotEvent.DataReceived (BotData.Text courseDesc) ->
-      BotState.PendingData
-        { Name = courseName
-          Desc = courseDesc
-          Blocks = [] }
-      , BotIntent.ReportDescSet
+  | Idle _ ->
+    commands.getIdle ()
+    |> updateIdle callback
 
-    | BotEvent.CommandReceived BotCommand.Help ->
-      BotState.PendingDesc courseName, BotIntent.ShowHelp Help.PendingDesc
+  | CreatingCourse _ ->
+    commands.getCreatingCourse ()
+    |> updatePendingCourseTitle services callback
 
-    | _ ->
-      BotState.PendingDesc courseName,
-      BotIntent.ReportUnsupported Help.PendingDesc )
-  |> callback
-
-let updatePendingData callback acc event =
-  ( match event with
-    | BotEvent.CommandReceived BotCommand.Undo ->
-      match acc.Blocks with
-      | [] ->
-        BotState.PendingDesc acc.Name, BotIntent.ReportDescUndone
-
-      | _ :: xs ->
-        let newAcc =
-          { acc with Blocks = xs }
-
-        BotState.PendingData newAcc,
-        BotIntent.ReportDataUndone newAcc.Blocks.Length
-
-    | BotEvent.CommandReceived BotCommand.Cancel ->
-      BotState.Idle, BotIntent.ReportCourseCanceled
-
-    | BotEvent.DataReceived (BotData.Text text) ->
-      let newAcc =
-        { acc with
-            Blocks = (BotData.Text text) :: acc.Blocks }
-
-      BotState.PendingData newAcc,
-      BotIntent.ReportDataTextSet newAcc.Blocks.Length
-
-    | BotEvent.DataReceived (BotData.Voice filePath) ->
-      let newAcc =
-        { acc with
-            Blocks = (BotData.Voice filePath) :: acc.Blocks }
-
-      BotState.PendingData newAcc,
-      BotIntent.ReportDataVoiceSet newAcc.Blocks.Length
-
-    | BotEvent.CommandReceived BotCommand.Finish ->
-      BotState.Idle, BotIntent.SaveCourse acc
-
-    | BotEvent.CommandReceived BotCommand.Help ->
-      BotState.PendingData acc, BotIntent.ShowHelp Help.PendingData
-
-    | _ ->
-      BotState.PendingData acc, BotIntent.ReportUnsupported Help.PendingData )
-  |> callback
-
-let updateState callback services state event =
-  match state with
-  | BotState.Inactive ->
-    updateInactive callback event
-
-  | BotState.Idle ->
-    updateIdle callback event
-
-  | BotState.PendingName ->
-    updatePendingName callback services.checkNameReserved event
-
-  | BotState.PendingDesc courseName ->
-    updatePendingDesc callback courseName event
-
-  | BotState.PendingData acc ->
-    updatePendingData callback acc event
+  | EditingCourse courseId ->
+    commands.getEditingCourse ()
+    |> updateEditingCourse callback courseId

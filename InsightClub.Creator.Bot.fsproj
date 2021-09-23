@@ -9,7 +9,6 @@
   <ItemGroup>
     <Compile Include="Core.fs" />
     <Compile Include="Config.fs" />
-    <Compile Include="Repo.fs" />
     <Compile Include="Message.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Program.fs" />
@@ -25,18 +24,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="EntityFrameworkCore.FSharp" Version="5.0.3-beta006" />
     <PackageReference Include="FSharp.Configuration" Version="2.0.0" />
     <PackageReference Include="FsToolkit.ErrorHandling" Version="2.7.0" />
-    <PackageReference Include="InsightClub.Db" Version="0.1.0" />
     <PackageReference Include="InsightClub.Funogram" Version="2.0.3" />
     <PackageReference Include="InsightClub.Funogram.Telegram" Version="4.4.3" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="5.0.9">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="5.0.7" />
+    <PackageReference Include="Npgsql.FSharp" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>

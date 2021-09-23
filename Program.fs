@@ -1,19 +1,20 @@
 module InsightClub.Creator.Bot.Program
 
-open System.Net
+open Config
+open FsToolkit.ErrorHandling
 open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
-open FsToolkit.ErrorHandling
-open InsightClub.Creator.Bot.Config
-open InsightClub.Db
+open Npgsql
+open Npgsql.FSharp
+open System.Net
 
 
 let startBot
   (appConfig: Config)
   (listener: HttpListener)
-  (getContext: unit -> BotContext) =
+  (getConnection: unit -> NpgsqlConnection) =
   // YamlConfig adds additional '/' character at the end of urls
   // So don't prepend apiPath with '/'
   let apiPath = $"api/{appConfig.Token}"
@@ -49,7 +50,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (Api.updateArrived botConfig getContext) None
+    startBot botConfig (Api.updateArrived botConfig getConnection) None
 
   asyncResult
     { do! setWebhook ()
@@ -81,22 +82,30 @@ let main _ =
     use listener = new HttpListener()
     listener.Prefixes.Add(config.Server.Listen)
 
-    let getContext () =
-      config
-      |> Config.connStr
-      |> BotContext.create
+    let getConnection () =
+      let str =
+        Sql.host config.Db.Host
+        |> Sql.database config.Db.Database
+        |> Sql.username config.Db.Username
+        |> Sql.password config.Db.Password
+        |> Sql.port config.Db.Port
+        |> Sql.formatConnectionString
 
-    if BotContext.canConnect <| getContext () then
+      new NpgsqlConnection(str)
+
+    try
+      // Test connection
+      using (getConnection()) (fun c -> c.Open())
 
       // Run synchronously to block the tread
       // Don't use Async.StartImmediate
       // or program will immediately shut after the launch
-      startBot config listener getContext
+      startBot config listener getConnection
       |> Async.Ignore
       |> Async.RunSynchronously
 
-    else
-      printNoConnection ()
+    with
+    | _ -> printNoConnection ()
 
   else
     printNoFile ()
