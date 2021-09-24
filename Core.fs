@@ -68,7 +68,7 @@ let private updatePendingCourseTitle services callback =
         callback <| EditingCourse courseId
 
       | None ->
-        CreatingCourse CreatingCourse.TitleReserved )
+        callback <| CreatingCourse CreatingCourse.TitleReserved )
     |> services.tryCreateCourse title
 
   | None ->
