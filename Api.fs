@@ -1,7 +1,6 @@
 module InsightClub.Creator.Bot.Api
 
 open Core
-open Repo
 open Funogram.Api
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
@@ -28,7 +27,7 @@ let getServices connection creatorId =
   let tryCreateCourse courseTitle callback =
     async
       { let! courseIdOption =
-          tryCreateCourse connection creatorId courseTitle
+          Repo.tryCreateCourse connection creatorId courseTitle
 
         return! callback courseIdOption }
 
@@ -72,8 +71,11 @@ let getCommands ctx =
 
 // State
 let getState connection telegramId =
-  getState (Json.serialize initial) connection telegramId
+  Repo.getState (Json.serialize initial) connection telegramId
   |> Async.map Json.deserialize<TelegramBotState>
+
+let updateState connection telegramId (newState: TelegramBotState) =
+  Repo.updateState connection telegramId (Json.serialize newState)
 
 // Telegram user
 let getUser ctx () =
