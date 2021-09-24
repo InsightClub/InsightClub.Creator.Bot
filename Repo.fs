@@ -33,15 +33,20 @@ let getState initialState connection telegramId =
       VALUES (@telegram_id, @initial_state)
       ON CONFLICT(telegram_id)
       DO NOTHING
-      RETURNING telegram_bot_state
+      RETURNING creator_id, telegram_bot_state
     )
-    SELECT telegram_bot_state FROM i
+    SELECT * FROM i
     UNION
-    SELECT telegram_bot_state FROM creators WHERE telegram_id = @telegram_id"
+    SELECT creator_id, telegram_bot_state
+    FROM creators
+    WHERE telegram_id = @telegram_id"
   |> Sql.parameters
     [ "telegram_id", Sql.int64 telegramId
       "initial_state", Sql.string initialState ]
-  |> Sql.executeRowAsync (fun read -> read.string "telegram_bot_state")
+  |> Sql.executeRowAsync
+    ( fun read ->
+        read.int "creator_id",
+        read.string "telegram_bot_state" )
   |> Async.AwaitTask
 
 let updateState connection telegramId newState =

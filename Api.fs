@@ -72,7 +72,10 @@ let getCommands ctx =
 // State
 let getState connection telegramId =
   Repo.getState (Json.serialize initial) connection telegramId
-  |> Async.map Json.deserialize<TelegramBotState>
+  |> Async.map
+    ( fun (creatorId, stateJson) ->
+        creatorId,
+        Json.deserialize<TelegramBotState> stateJson )
 
 let updateState connection telegramId (newState: TelegramBotState) =
   Repo.updateState connection telegramId (Json.serialize newState)
