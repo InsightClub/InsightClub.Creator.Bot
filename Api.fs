@@ -16,26 +16,23 @@ let (|NotCommand|_|) (s: string) =
 
 let always x _ = x
 
-let getUser ctx =
+let getUser ctx () =
   ctx.Update.Message
   |> Option.bind (fun m -> m.From)
 
-let getInactive ctx =
+let getInactive ctx () =
   ctx.Update.Message
   |> Option.bind (fun m -> m.Text)
   |> Option.filter ((=) "/start")
   |> Option.map (always Inactive.Start)
-  |> always
 
-let getIdle ctx =
+let getIdle ctx () =
   ctx.Update.Message
   |> Option.bind (fun m -> m.Text)
   |> Option.filter ((=) "/new")
   |> Option.map (always Idle.CreateCourse)
-  |> always
 
-let getCreatingCourse ctx =
-  always <|
+let getCreatingCourse ctx () =
   match ctx.Update with
   | { CallbackQuery = Some { Data = Some "/cancel" } } ->
     Some CreatingCourse.Cancel
