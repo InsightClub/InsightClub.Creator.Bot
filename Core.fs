@@ -36,8 +36,7 @@ type BotCommands =
 type Service<'p, 'a> = ('p -> 'a) -> 'a
 
 type BotServices<'a> =
-  { isCourseTitleReserved: CourseTitle -> Service<bool, 'a>
-    createCourse: CourseTitle -> Service<CourseId, 'a> }
+  { tryCreateCourse: CourseTitle -> Service<CourseId option, 'a> }
 
 // Values
 let initial = Inactive
@@ -65,15 +64,12 @@ let private updatePendingCourseTitle services callback =
 
   | Some (CreatingCourse.CreateCourse title) ->
     ( function
-      | true  ->
-        callback <| CreatingCourse CreatingCourse.TitleReserved
+      | Some courseId ->
+        callback <| EditingCourse courseId
 
-      | false ->
-        EditingCourse
-        >> callback
-        |> services.createCourse title )
-
-    |> services.isCourseTitleReserved title
+      | None ->
+        CreatingCourse CreatingCourse.TitleReserved )
+    |> services.tryCreateCourse title
 
   | None ->
     callback <| CreatingCourse CreatingCourse.Error

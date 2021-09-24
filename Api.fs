@@ -1,6 +1,7 @@
 module InsightClub.Creator.Bot.Api
 
 open Core
+open Repo
 open Funogram.Api
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
@@ -9,6 +10,7 @@ open FsToolkit.ErrorHandling
 open Microsoft.FSharpLu.Json
 
 
+// Helpers
 module Json = Compact.Strict
 
 let (|NotCommand|_|) (s: string) =
@@ -16,45 +18,59 @@ let (|NotCommand|_|) (s: string) =
 
 let always x _ = x
 
+// Services
+let getServices connection creatorId =
+  let tryCreateCourse courseTitle callback =
+    async
+      { let! courseIdOption =
+          tryCreateCourse connection creatorId courseTitle
+
+        return! callback courseIdOption }
+
+  { tryCreateCourse = tryCreateCourse }
+
+// Commands
+let getCommands ctx =
+  let getInactive () =
+    ctx.Update.Message
+    |> Option.bind (fun m -> m.Text)
+    |> Option.filter ((=) "/start")
+    |> Option.map (always Inactive.Start)
+
+  let getIdle () =
+    ctx.Update.Message
+    |> Option.bind (fun m -> m.Text)
+    |> Option.filter ((=) "/new")
+    |> Option.map (always Idle.CreateCourse)
+
+  let getCreatingCourse () =
+    match ctx.Update with
+    | { CallbackQuery = Some { Data = Some "/cancel" } } ->
+      Some CreatingCourse.Cancel
+
+    | { Message = Some { Text = Some (NotCommand courseTitle) } } ->
+      Some <| CreatingCourse.CreateCourse courseTitle
+
+    | _ ->
+      None
+
+  let getEditingCourse () =
+    ctx.Update.CallbackQuery
+    |> Option.bind (fun q -> q.Data)
+    |> Option.filter ((=) "/exit")
+    |> Option.map (always EditingCourse.Exit)
+
+  { getInactive = getInactive
+    getIdle = getIdle
+    getCreatingCourse = getCreatingCourse
+    getEditingCourse = getEditingCourse }
+
+// Telegram user
 let getUser ctx () =
   ctx.Update.Message
   |> Option.bind (fun m -> m.From)
 
-let getInactive ctx () =
-  ctx.Update.Message
-  |> Option.bind (fun m -> m.Text)
-  |> Option.filter ((=) "/start")
-  |> Option.map (always Inactive.Start)
-
-let getIdle ctx () =
-  ctx.Update.Message
-  |> Option.bind (fun m -> m.Text)
-  |> Option.filter ((=) "/new")
-  |> Option.map (always Idle.CreateCourse)
-
-let getCreatingCourse ctx () =
-  match ctx.Update with
-  | { CallbackQuery = Some { Data = Some "/cancel" } } ->
-    Some CreatingCourse.Cancel
-
-  | { Message = Some { Text = Some (NotCommand courseTitle) } } ->
-    Some <| CreatingCourse.CreateCourse courseTitle
-
-  | _ ->
-    None
-
-let getEditingCourse ctx () =
-  ctx.Update.CallbackQuery
-  |> Option.bind (fun q -> q.Data)
-  |> Option.filter ((=) "/exit")
-  |> Option.map (always EditingCourse.Exit)
-
-let getCommands ctx =
-  { getInactive = getInactive ctx
-    getIdle = getIdle ctx
-    getCreatingCourse = getCreatingCourse ctx
-    getEditingCourse = getEditingCourse ctx }
-
+// Main function
 let updateArrived botConfig getConnection upContext =
   Async.singleton ()
   |> Async.Ignore
