@@ -49,16 +49,16 @@ let getState initialState connection telegramId =
         read.string "telegram_bot_state" )
   |> Async.AwaitTask
 
-let updateState connection telegramId newState =
+let updateState connection creatorId newState =
   connection
   |> Sql.existingConnection
   |> Sql.query
     "UPDATE creators
     SET telegram_bot_state = @new_state
-    WHERE telegram_id = @telegram_id"
+    WHERE creator_id = @creator_id"
   |> Sql.parameters
     [ "new_state", Sql.string newState
-      "telegram_id", Sql.int64 telegramId ]
+      "creator_id", Sql.int creatorId ]
   |> Sql.executeNonQueryAsync
   |> Async.AwaitTask
   |> Async.Ignore
