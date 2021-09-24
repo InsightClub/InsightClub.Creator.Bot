@@ -81,6 +81,6 @@ let getUser ctx () =
   |> Option.bind (fun m -> m.From)
 
 // Main function
-let updateArrived botConfig getConnection upContext =
+let updateArrived getConnection upContext =
   Async.singleton ()
   |> Async.Ignore
