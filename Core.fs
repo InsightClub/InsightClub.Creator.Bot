@@ -25,8 +25,7 @@ type BotState =
   | CreatingCourse of CreatingCourse.Context
   | EditingCourse of CourseId
 
-type Command<'c> = Recognized of 'c | Unknown
-type CommandGetter<'c> = unit -> Command<'c>
+type CommandGetter<'c> = unit -> Option<'c>
 
 type BotCommands =
   { getInactive: CommandGetter<Inactive.Command>
@@ -45,26 +44,26 @@ let initial = Inactive
 
 let private updateInactive callback =
   function
-  | Recognized Inactive.Start ->
+  | Some Inactive.Start ->
     callback <| Idle Idle.Started
 
-  | Unknown ->
+  | None ->
     callback Inactive
 
 let private updateIdle callback =
   function
-  | Recognized Idle.CreateCourse ->
+  | Some Idle.CreateCourse ->
     callback <| CreatingCourse CreatingCourse.Started
 
-  | Unknown ->
+  | None ->
     callback <| Idle Idle.Error
 
 let private updatePendingCourseTitle services callback =
   function
-  | Recognized CreatingCourse.Cancel ->
+  | Some CreatingCourse.Cancel ->
     callback <| Idle Idle.Canceled
 
-  | Recognized (CreatingCourse.CreateCourse title) ->
+  | Some (CreatingCourse.CreateCourse title) ->
     ( function
       | true  ->
         callback <| CreatingCourse CreatingCourse.TitleReserved
@@ -76,18 +75,18 @@ let private updatePendingCourseTitle services callback =
 
     |> services.isCourseTitleReserved title
 
-  | Unknown ->
+  | None ->
     callback <| CreatingCourse CreatingCourse.Error
 
 let private updateEditingCourse callback courseId =
   function
-  | Recognized EditingCourse.Exit ->
+  | Some EditingCourse.Exit ->
     callback <| Idle Idle.Exited
 
-  | Unknown ->
+  | None ->
     callback <| EditingCourse courseId
 
-let update commands services callback =
+let update services commands callback =
   function
   | Inactive ->
     commands.getInactive ()
