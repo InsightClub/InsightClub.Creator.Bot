@@ -21,8 +21,8 @@ let tryCreateCourse connection creatorId courseTitle =
     |> Async.map Some
   with
     :? PostgresException as px
-      when px.ErrorCode = int PostgresErrorCodes.UniqueViolation ->
-      Async.singleton None
+    when px.ErrorCode = int PostgresErrorCodes.UniqueViolation ->
+    Async.singleton None
 
 let getState initialState connection telegramId =
   connection
