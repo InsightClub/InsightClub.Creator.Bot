@@ -31,7 +31,7 @@ let getTelegramBotStateJson initialState connection telegramId =
       "WITH i AS(
         INSERT INTO creators (telegram_id, telegram_bot_state)
         VALUES (@telegram_id, @initial_state)
-        ON CONFLICT(creator_id)
+        ON CONFLICT(telegram_id)
         DO NOTHING
         RETURNING telegram_bot_state
       )
