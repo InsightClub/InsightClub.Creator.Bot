@@ -24,13 +24,13 @@ let tryCreateCourse connection creatorId courseTitle =
       when px.ErrorCode = int PostgresErrorCodes.UniqueViolation ->
       Async.singleton None
 
-let getTelegramBotStateJson connection initialJson telegramId =
+let getTelegramBotStateJson initialState connection telegramId =
   connection
   |> Sql.existingConnection
   |> Sql.query
       "WITH i AS(
         INSERT INTO creators (telegram_id, telegram_bot_state)
-        VALUES (@telegram_id, @telegram_bot_state)
+        VALUES (@telegram_id, @initial_state)
         ON CONFLICT(creator_id)
         DO NOTHING
         RETURNING telegram_bot_state
@@ -40,6 +40,6 @@ let getTelegramBotStateJson connection initialJson telegramId =
       SELECT telegram_bot_state FROM creators WHERE telegram_id = @telegram_id"
   |> Sql.parameters
     [ "telegram_id", Sql.int64 telegramId
-      "telegram_bot_state", Sql.string initialJson ]
+      "initial_state", Sql.string initialState ]
   |> Sql.executeRowAsync (fun read -> read.string "telegram_bot_state")
   |> Async.AwaitTask
