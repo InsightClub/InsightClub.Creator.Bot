@@ -24,22 +24,36 @@ let tryCreateCourse connection creatorId courseTitle =
       when px.ErrorCode = int PostgresErrorCodes.UniqueViolation ->
       Async.singleton None
 
-let getTelegramBotStateJson initialState connection telegramId =
+let getState initialState connection telegramId =
   connection
   |> Sql.existingConnection
   |> Sql.query
-      "WITH i AS(
-        INSERT INTO creators (telegram_id, telegram_bot_state)
-        VALUES (@telegram_id, @initial_state)
-        ON CONFLICT(telegram_id)
-        DO NOTHING
-        RETURNING telegram_bot_state
-      )
-      SELECT telegram_bot_state FROM i
-      UNION
-      SELECT telegram_bot_state FROM creators WHERE telegram_id = @telegram_id"
+    "WITH i AS(
+      INSERT INTO creators (telegram_id, telegram_bot_state)
+      VALUES (@telegram_id, @initial_state)
+      ON CONFLICT(telegram_id)
+      DO NOTHING
+      RETURNING telegram_bot_state
+    )
+    SELECT telegram_bot_state FROM i
+    UNION
+    SELECT telegram_bot_state FROM creators WHERE telegram_id = @telegram_id"
   |> Sql.parameters
     [ "telegram_id", Sql.int64 telegramId
       "initial_state", Sql.string initialState ]
   |> Sql.executeRowAsync (fun read -> read.string "telegram_bot_state")
   |> Async.AwaitTask
+
+let updateState connection telegramId newState =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "UPDATE creators
+    SET telegram_bot_state = @new_state
+    WHERE telegram_id = @telegram_id"
+  |> Sql.parameters
+    [ "new_state", Sql.string newState
+      "telegram_id", Sql.int64 telegramId ]
+  |> Sql.executeNonQueryAsync
+  |> Async.AwaitTask
+  |> Async.Ignore

@@ -72,7 +72,7 @@ let getCommands ctx =
 
 // State
 let getState connection telegramId =
-  getTelegramBotStateJson (Json.serialize initial) connection telegramId
+  getState (Json.serialize initial) connection telegramId
   |> Async.map Json.deserialize<TelegramBotState>
 
 // Telegram user
