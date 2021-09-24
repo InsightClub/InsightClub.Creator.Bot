@@ -70,6 +70,11 @@ let getCommands ctx =
     getCreatingCourse = getCreatingCourse
     getEditingCourse = getEditingCourse }
 
+// Get state
+let getState connection telegramId =
+  getTelegramBotStateJson (Json.serialize initial) connection telegramId
+  |> Async.map Json.deserialize<TelegramBotState>
+
 // Telegram user
 let getUser ctx () =
   ctx.Update.Message
