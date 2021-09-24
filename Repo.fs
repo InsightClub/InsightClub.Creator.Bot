@@ -23,3 +23,23 @@ let tryCreateCourse connection creatorId courseTitle =
     :? PostgresException as px
       when px.ErrorCode = int PostgresErrorCodes.UniqueViolation ->
       Async.singleton None
+
+let getTelegramBotStateJson connection initialJson telegramId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+      "WITH i AS(
+        INSERT INTO creators (telegram_id, telegram_bot_state)
+        VALUES (@telegram_id, @telegram_bot_state)
+        ON CONFLICT(creator_id)
+        DO NOTHING
+        RETURNING telegram_bot_state
+      )
+      SELECT telegram_bot_state FROM i
+      UNION
+      SELECT telegram_bot_state FROM creators WHERE telegram_id = @telegram_id"
+  |> Sql.parameters
+    [ "telegram_id", Sql.int64 telegramId
+      "telegram_bot_state", Sql.string initialJson ]
+  |> Sql.executeRowAsync (fun read -> read.string "telegram_bot_state")
+  |> Async.AwaitTask
