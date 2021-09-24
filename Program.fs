@@ -78,15 +78,14 @@ let main _ =
     listener.Prefixes.Add(config.Server.Listen)
 
     let getConnection () =
-      let str =
-        Sql.host config.Db.Host
-        |> Sql.database config.Db.Database
-        |> Sql.username config.Db.Username
-        |> Sql.password config.Db.Password
-        |> Sql.port config.Db.Port
-        |> Sql.formatConnectionString
-
-      new NpgsqlConnection(str)
+      Sql.host config.Db.Host
+      |> Sql.database config.Db.Database
+      |> Sql.username config.Db.Username
+      |> Sql.password config.Db.Password
+      |> Sql.port config.Db.Port
+      |> Sql.formatConnectionString
+      |> Sql.connect
+      |> Sql.createConnection
 
     try
       // Test connection
