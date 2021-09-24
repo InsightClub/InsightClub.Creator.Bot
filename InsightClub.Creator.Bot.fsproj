@@ -15,8 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Default.Config.yaml" />
-    <None Include="Config.yaml" />
+    <None Include="Default.Config.yaml" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="Config.yaml" CopyToOutputDirectory="PreserveNewest" />
     <None Include=".gitignore" />
     <None Include=".gitattributes" />
     <None Include=".editorconfig" />

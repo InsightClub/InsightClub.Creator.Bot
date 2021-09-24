@@ -59,12 +59,7 @@ let startBot
 
 [<EntryPoint>]
 let main _ =
-  let filePath =
-    #if DEBUG
-      "../../../Config.yaml"
-    #else
-      "Config.yaml"
-    #endif
+  let filePath = "Config.yaml"
 
   let printNoFile () =
     printfn $"Please, provide a {filePath} file."
