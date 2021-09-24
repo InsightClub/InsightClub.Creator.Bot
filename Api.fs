@@ -43,12 +43,11 @@ let getCreatingCourse ctx () =
   | _ ->
     None
 
-let getEditingCourse ctx =
+let getEditingCourse ctx () =
   ctx.Update.CallbackQuery
   |> Option.bind (fun q -> q.Data)
   |> Option.filter ((=) "/exit")
   |> Option.map (always EditingCourse.Exit)
-  |> always
 
 let getCommands ctx =
   { getInactive = getInactive ctx
