@@ -10,6 +10,11 @@ open FsToolkit.ErrorHandling
 open Microsoft.FSharpLu.Json
 
 
+// Types
+type TelegramBotState =
+  { LastMessageId: int64 option
+    State: BotState }
+
 // Helpers
 module Json = Compact.Strict
 

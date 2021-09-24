@@ -10,19 +10,19 @@ module Inactive =
 
 module Idle =
   type Command = CreateCourse
-  type Context = Started | Canceled | Exited | Error
+  type Data = Started | Canceled | Exited | Error
 
 module CreatingCourse =
   type Command = Cancel | CreateCourse of CourseTitle
-  type Context = Started | TitleReserved | Error
+  type Data = Started | TitleReserved | Error
 
 module EditingCourse =
   type Command = Exit
 
 type BotState =
   | Inactive
-  | Idle of Idle.Context
-  | CreatingCourse of CreatingCourse.Context
+  | Idle of Idle.Data
+  | CreatingCourse of CreatingCourse.Data
   | EditingCourse of CourseId
 
 type CommandGetter<'c> = unit -> Option<'c>
