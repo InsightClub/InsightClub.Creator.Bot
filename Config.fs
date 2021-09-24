@@ -15,10 +15,3 @@ module Config =
       Some config
     else
       None
-
-  /// Constructs database connection string.
-  let connStr (config: Config) =
-    $"Host={config.Db.Host};
-      Database={config.Db.Database};
-      Username={config.Db.Username};
-      Password={config.Db.Password}"
