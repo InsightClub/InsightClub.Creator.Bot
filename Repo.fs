@@ -1,6 +1,5 @@
 module InsightClub.Creator.Bot.Repo
 
-open FsToolkit.ErrorHandling
 open Npgsql
 open Npgsql.FSharp
 
