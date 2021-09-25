@@ -1,7 +1,6 @@
 module InsightClub.Creator.Bot.Program
 
 open Config
-open FsToolkit.ErrorHandling
 open Funogram.Api
 open Funogram.Types
 open Funogram.Telegram.Api
@@ -46,13 +45,14 @@ let startBot
   let setWebhook () =
     setWebhookBase webhookUrl None None None
     |> api botConfig
-    |> Async.map (Result.map ignore >> Result.mapError printError)
+    |> Async.map (Result.mapError printError)
+    |> Async.Ignore
 
   let startBot () =
     printStarted ()
     startBot botConfig (Api.updateArrived getConnection) None
 
-  asyncResult
+  async
     { do! setWebhook ()
       do! startBot () }
   |> Async.Ignore
