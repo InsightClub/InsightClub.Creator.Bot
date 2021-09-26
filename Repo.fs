@@ -2,26 +2,31 @@ module InsightClub.Creator.Bot.Repo
 
 open Npgsql
 open Npgsql.FSharp
-
+open System
 
 let tryCreateCourse connection creatorId courseTitle =
-  try
-    connection
-    |> Sql.existingConnection
-    |> Sql.query
-      "INSERT INTO courses(creator_id, course_title)
-      VALUES (@creator_id, @course_title)
-      RETURNING course_id"
-    |> Sql.parameters
-      [ "creator_id", Sql.int creatorId
-        "course_title", Sql.string courseTitle ]
-    |> Sql.executeRowAsync (fun read -> read.int "course_id")
-    |> Async.AwaitTask
-    |> Async.map Some
-  with
-    :? PostgresException as px
-    when px.ErrorCode = int PostgresErrorCodes.UniqueViolation ->
-    Async.singleton None
+  async
+    { try
+        return!
+          connection
+          |> Sql.existingConnection
+          |> Sql.query
+            "INSERT INTO courses(creator_id, course_title)
+            VALUES (@creator_id, @course_title)
+            RETURNING course_id"
+          |> Sql.parameters
+            [ "creator_id", Sql.int creatorId
+              "course_title", Sql.string courseTitle ]
+          |> Sql.executeRowAsync (fun read -> read.int "course_id")
+          |> Async.AwaitTask
+          |> Async.map Some
+
+      with
+      | :? AggregateException as e when
+        (e.InnerException :? PostgresException) &&
+        (e.InnerException :?> PostgresException).SqlState
+          = PostgresErrorCodes.UniqueViolation ->
+        return None }
 
 let getState initialState connection telegramId =
   connection
