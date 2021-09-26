@@ -87,19 +87,23 @@ let main _ =
       |> Sql.connect
       |> Sql.createConnection
 
-    try
-      // Test connection
-      using (getConnection()) (fun c -> c.Open())
+    let connected =
+      try
+        // Test connection
+        using (getConnection()) (fun c -> c.Open())
+        true
+      with
+      | _ ->
+        printNoConnection ()
+        false
 
+    if connected then
       // Run synchronously to block the tread
       // Don't use Async.StartImmediate
       // or program will immediately shut after the launch
       startBot config listener getConnection
       |> Async.Ignore
       |> Async.RunSynchronously
-
-    with
-    | _ -> printNoConnection ()
 
   else
     printNoFile ()
