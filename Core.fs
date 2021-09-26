@@ -10,7 +10,7 @@ module Inactive =
 
 module Idle =
   type Command = CreateCourse
-  type Data = Started | Canceled | Exited | Error
+  type Data = Started | CourseCanceled | ExitedEditing | Error
 
 module CreatingCourse =
   type Command = Cancel | CreateCourse of CourseTitle
@@ -57,10 +57,10 @@ let private updateIdle callback =
   | None ->
     callback <| Idle Idle.Error
 
-let private updatePendingCourseTitle services callback =
+let private updateCreatingCourse services callback =
   function
   | Some CreatingCourse.Cancel ->
-    callback <| Idle Idle.Canceled
+    callback <| Idle Idle.CourseCanceled
 
   | Some (CreatingCourse.CreateCourse title) ->
     ( function
@@ -77,7 +77,7 @@ let private updatePendingCourseTitle services callback =
 let private updateEditingCourse callback courseId =
   function
   | Some EditingCourse.Exit ->
-    callback <| Idle Idle.Exited
+    callback <| Idle Idle.ExitedEditing
 
   | None ->
     callback <| EditingCourse courseId
@@ -94,7 +94,7 @@ let update services commands callback =
 
   | CreatingCourse _ ->
     commands.getCreatingCourse ()
-    |> updatePendingCourseTitle services callback
+    |> updateCreatingCourse services callback
 
   | EditingCourse courseId ->
     commands.getEditingCourse ()

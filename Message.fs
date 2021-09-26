@@ -11,7 +11,11 @@ let f = sprintf
 let ln = "\n"
 let doubleLn = ln + ln
 
-// Texts
+// Button texts
+let cancel = "Отмена"
+let exit = "Выход"
+
+// Messages
 let greeting firstName lastNameOption =
   let lastName =
     lastNameOption
@@ -24,14 +28,17 @@ let greeting firstName lastNameOption =
     Отправьте /help для получения помощи." firstName lastName
   |> c
 
+let courseStarted =
+  c "Создаём новый курс.
+
+    Отправьте текст для того, чтоб задать название."
+
 let courseCanceled = "Создание курса отменено."
+
+let titleReserved = "Название уже занято. Введите другое."
+
+let exitedEditing = "Редактирование завершено."
+
 let error = "Неизвестная команда."
 
-let help =
-  c "Этот бот позволяет пошагово создавать свои курсы в Телеграм."
-
-let commands =
-  c "/help — Получить помощь
-     /new — Начать создавать курс"
-
-let newCourse = "Создаём новый курс. Пришлите имя будущего курса."
+let editingCourse = "Выберите действие."
