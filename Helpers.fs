@@ -5,6 +5,8 @@ module InsightClub.Creator.Bot.Helpers
 module Async =
   let singleton n = async { return n }
 
+  let doNothing = singleton ()
+
   let map f comp =
     async
       { let! r = comp

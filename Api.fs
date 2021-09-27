@@ -1,7 +1,7 @@
 module InsightClub.Creator.Bot.Api
 
 open Core
-open Funogram.Api
+open Funogram
 open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
@@ -122,118 +122,115 @@ let markup = inlineMarkup >> InlineKeyboardMarkup
 
 // Response
 let respond (ctx: UpdateContext) lastId =
-  let user = Option.get <| getUser ctx
-  let config = ctx.Config
+  // updateArrived must ensure user is present, so this call is safe
+  let user = getUser ctx |> Option.get
+  let api r = Api.api ctx.Config r
 
-  let sendMessage =
-    Api.sendMessage user.Id
-    >> api config
+  let removeLastMarkupMaybe () =
+    lastId
+    |> Option.map
+      ( fun lastId ->
+          Api.editMessageReplyMarkupBase
+            (Some <| Int user.Id) (Some lastId) None None
+          |> api
+          |> Async.Ignore )
+    |> Option.defaultValue Async.doNothing
 
-  let sendMessageMarkup text =
-    Api.sendMessageMarkup user.Id text
-    >> api config
+  let answerCallbackMaybe () =
+    ctx.Update.CallbackQuery
+    |> Option.map
+      ( fun query ->
+          Api.answerCallbackQueryBase (Some query.Id) (Some "") None None None
+          |> api
+          |> Async.Ignore )
+    |> Option.defaultValue Async.doNothing
+
+  let sendMessage text =
+    async
+      { do! removeLastMarkupMaybe ()
+        do! answerCallbackMaybe ()
+        let! _ = Api.sendMessage user.Id text |> api
+        return None }
+
+  let sendMessageMarkup text markup =
+    async
+      { do! removeLastMarkupMaybe ()
+        do! answerCallbackMaybe ()
+        let! r = Api.sendMessageMarkup user.Id text markup |> api
+        return
+          match r with
+          | Ok m -> Some m.MessageId
+          | Error _ -> None }
 
   let editLastMessage text markup =
-    Api.editMessageTextBase
-      (Some <| Int user.Id) lastId None text None None markup
-    |> api config
+    match lastId with
+    | Some lastId ->
+      async
+        { do! answerCallbackMaybe ()
 
-  let removeMarkup () =
-    Api.editMessageReplyMarkupBase
-      (Some <| Int user.Id) lastId None None
-    |> api config
-    |> Async.Ignore
+          let! _ =
+            Api.editMessageTextBase
+              (Some <| Int user.Id) (Some lastId) None text None None markup
+            |> api
 
-  let answerCallback text =
-    let Id = ctx.Update.CallbackQuery.Value.Id
-    Api.answerCallbackQueryBase
-      (Some Id) (Some text) None None None
-    |> api config
+          return
+            markup
+            |> Option.map (always lastId) }
 
-  let andRemovePrevious comp =
-    async
-      { do! removeMarkup ()
-        return! comp }
-
-  let andAnswerCallbackEmpty comp =
-    async
-      { let! _ = answerCallback ""
-        return! comp }
-
-  let getMessageId comp =
-    async
-      { match! comp with
-        | Ok { MessageId = id } ->
-          return Some id
-
-        | _ ->
-          return lastId }
+    | None ->
+      Async.singleton None
 
   function
   | Inactive ->
     Async.singleton None
 
   | Idle Idle.Started ->
-    Message.greeting user.FirstName user.LastName
-    |> sendMessage
-    |> Async.always None
+    sendMessage <| Message.greeting user.FirstName user.LastName
 
   | Idle Idle.CourseCanceled ->
     editLastMessage Message.courseCanceled None
-    |> Async.always None
-    |> andAnswerCallbackEmpty
 
   | Idle Idle.ExitedEditing ->
     editLastMessage Message.exitedEditing None
-    |> Async.always None
-    |> andAnswerCallbackEmpty
 
   | Idle Idle.Error ->
-    Message.error
-    |> sendMessage
-    |> Async.always None
+    sendMessage Message.error
 
   | CreatingCourse CreatingCourse.Started ->
     [ [ button Message.cancel cancelCourse ] ]
     |> markup
     |> sendMessageMarkup Message.courseStarted
-    |> getMessageId
 
   | CreatingCourse CreatingCourse.TitleReserved ->
     [ [ button Message.cancel cancelCourse ] ]
     |> markup
     |> sendMessageMarkup Message.titleReserved
-    |> getMessageId
-    |> andRemovePrevious
 
   | CreatingCourse CreatingCourse.Error ->
     [ [ button Message.cancel cancelCourse ] ]
     |> markup
     |> sendMessageMarkup Message.error
-    |> getMessageId
-    |> andRemovePrevious
 
   | EditingCourse _ ->
     [ [ button Message.exit exitEditing ] ]
     |> markup
     |> sendMessageMarkup Message.editingCourse
-    |> getMessageId
-    |> andRemovePrevious
 
 // Main function
 let updateArrived getConnection ctx =
-  match getUser ctx with
-  | Some user ->
-    async
-      { use connection = getConnection ()
-        let! creatorId, lastId, state = getState connection user.Id
-        let services = getServices connection creatorId
-        let commands = getCommands ctx
-        let callback = Async.singleton
-        let! newState = update services commands callback state
-        let! newLastId = respond ctx lastId newState
-        let telegramBotState = { LastId = newLastId; State = newState }
-        do! updateState connection creatorId telegramBotState }
+  ctx
+  |> getUser // Ensure user is present
+  |> Option.map
+      ( fun user ->
+          async
+            { use connection = getConnection ()
+              let! creatorId, lastId, state = getState connection user.Id
+              let services = getServices connection creatorId
+              let commands = getCommands ctx
+              let callback = Async.singleton
+              let! newState = update services commands callback state
+              let! newLastId = respond ctx lastId newState
+              let telegramBotState = { LastId = newLastId; State = newState }
+              do! updateState connection creatorId telegramBotState } )
 
-  | None ->
-    Async.singleton ()
+  |> Option.defaultValue Async.doNothing
