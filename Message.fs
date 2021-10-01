@@ -14,6 +14,7 @@ let doubleLn = ln + ln
 // Button texts
 let cancel = "Отмена"
 let exit = "Выход"
+let editTitle = "Редактировать название"
 
 // Messages
 let greeting firstName lastNameOption =
@@ -42,3 +43,9 @@ let exitedEditing = "Редактирование завершено."
 let error = "Неизвестная команда."
 
 let editingCourse = "Выберите действие."
+
+let editingTitle = "Введите новое название курса."
+
+let titleCanceled = "Редактирование названия отменено."
+
+let titleSet = "Название курса обновлено."

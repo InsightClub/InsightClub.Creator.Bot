@@ -34,13 +34,23 @@ let getServices connection creatorId =
 
         return! callback courseIdOption }
 
-  { tryCreateCourse = tryCreateCourse }
+  let tryUpdateTitle courseId courseTitle callback =
+    async
+      { let! wasUpdated =
+          Repo.tryUpdateTitle connection courseId courseTitle
+
+        return! callback wasUpdated }
+
+  { tryCreateCourse = tryCreateCourse
+    tryUpdateTitle = tryUpdateTitle }
 
 // Commands
 let start = "/start"
 let new' = "/new"
 let cancelCourse = "/cancel_course"
 let exitEditing = "/exit_editing"
+let editTitle = "/edit_title"
+let cancelTitle = "/cancel_title"
 
 let getCommands ctx =
   let getInactive () =
@@ -67,15 +77,32 @@ let getCommands ctx =
       None
 
   let getEditingCourse () =
-    ctx.Update.CallbackQuery
-    |> Option.bind (fun q -> q.Data)
-    |> Option.filter ((=) exitEditing)
-    |> Option.map (always EditingCourse.Exit)
+    match ctx.Update.CallbackQuery with
+    | Some { Data = Some (Command editTitle) } ->
+      Some EditingCourse.EditTitle
+
+    | Some { Data = Some (Command exitEditing) } ->
+      Some EditingCourse.Exit
+
+    | _ ->
+      None
+
+  let getEditingTitle () =
+    match ctx.Update with
+    | { CallbackQuery = Some { Data = Some (Command cancelTitle) } } ->
+      Some EditingTitle.Cancel
+
+    | { Message = Some { Text = Some (PlainText courseTitle) } } ->
+      Some <| EditingTitle.SetTitle courseTitle
+
+    | _ ->
+      None
 
   { getInactive = getInactive
     getIdle = getIdle
     getCreatingCourse = getCreatingCourse
-    getEditingCourse = getEditingCourse }
+    getEditingCourse = getEditingCourse
+    getEditingTitle = getEditingTitle }
 
 // State
 let initialStateJson =
@@ -196,25 +223,70 @@ let respond (ctx: UpdateContext) lastId =
   | Idle Idle.Error ->
     sendMessage Message.error
 
-  | CreatingCourse CreatingCourse.Started ->
-    [ [ button Message.cancel cancelCourse ] ]
-    |> markup
-    |> sendMessageMarkup Message.courseStarted
+  | CreatingCourse data ->
+    let keyboard = [ [ button Message.cancel cancelCourse ] ]
 
-  | CreatingCourse CreatingCourse.TitleReserved ->
-    [ [ button Message.cancel cancelCourse ] ]
-    |> markup
-    |> sendMessageMarkup Message.titleReserved
+    match data with
+    | CreatingCourse.Started ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.courseStarted
 
-  | CreatingCourse CreatingCourse.Error ->
-    [ [ button Message.cancel cancelCourse ] ]
-    |> markup
-    |> sendMessageMarkup Message.error
+    | CreatingCourse.TitleReserved ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.titleReserved
 
-  | EditingCourse _ ->
-    [ [ button Message.exit exitEditing ] ]
-    |> markup
-    |> sendMessageMarkup Message.editingCourse
+    | CreatingCourse.Error ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.error
+
+  | EditingCourse (_, data) ->
+    let keyboard =
+      [ [ button Message.editTitle editTitle ]
+        [ button Message.exit exitEditing ] ]
+
+    match data with
+    | EditingCourse.Started ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.editingCourse
+
+    | EditingCourse.TitleCanceled ->
+      keyboard
+      |> inlineMarkup
+      |> Some
+      |> editLastMessage Message.titleCanceled
+
+    | EditingCourse.TitleSet ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.titleSet
+
+    | EditingCourse.Error ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.error
+
+  | EditingTitle (_, data) ->
+    let keyboard = [ [ button Message.cancel cancelTitle ] ]
+
+    match data with
+    | EditingTitle.Started ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.editingTitle
+
+    | EditingTitle.TitleReserved ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.titleReserved
+
+    | EditingTitle.Error ->
+      keyboard
+      |> markup
+      |> sendMessageMarkup Message.error
 
 // Main function
 let updateArrived getConnection ctx =

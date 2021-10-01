@@ -17,13 +17,19 @@ module CreatingCourse =
   type Data = Started | TitleReserved | Error
 
 module EditingCourse =
-  type Command = Exit
+  type Command = EditTitle | Exit
+  type Data = Started | TitleCanceled | TitleSet | Error
+
+module EditingTitle =
+  type Command = Cancel | SetTitle of CourseTitle
+  type Data = Started | TitleReserved | Error
 
 type BotState =
   | Inactive
   | Idle of Idle.Data
   | CreatingCourse of CreatingCourse.Data
-  | EditingCourse of CourseId
+  | EditingCourse of CourseId * EditingCourse.Data
+  | EditingTitle of CourseId * EditingTitle.Data
 
 type CommandGetter<'c> = unit -> Option<'c>
 
@@ -31,12 +37,14 @@ type BotCommands =
   { getInactive: CommandGetter<Inactive.Command>
     getIdle: CommandGetter<Idle.Command>
     getCreatingCourse: CommandGetter<CreatingCourse.Command>
-    getEditingCourse: CommandGetter<EditingCourse.Command> }
+    getEditingCourse: CommandGetter<EditingCourse.Command>
+    getEditingTitle: CommandGetter<EditingTitle.Command> }
 
 type Service<'p, 'a> = ('p -> 'a) -> 'a
 
 type BotServices<'a> =
-  { tryCreateCourse: CourseTitle -> Service<CourseId option, 'a> }
+  { tryCreateCourse: CourseTitle -> Service<CourseId option, 'a>
+    tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'a> }
 
 // Values
 let initial = Inactive
@@ -65,7 +73,7 @@ let private updateCreatingCourse services callback =
   | Some (CreatingCourse.CreateCourse title) ->
     ( function
       | Some courseId ->
-        callback <| EditingCourse courseId
+        callback <| EditingCourse (courseId, EditingCourse.Started)
 
       | None ->
         callback <| CreatingCourse CreatingCourse.TitleReserved )
@@ -76,11 +84,32 @@ let private updateCreatingCourse services callback =
 
 let private updateEditingCourse callback courseId =
   function
+  | Some EditingCourse.EditTitle ->
+    callback <| EditingTitle (courseId, EditingTitle.Started)
+
   | Some EditingCourse.Exit ->
     callback <| Idle Idle.ExitedEditing
 
   | None ->
-    callback <| EditingCourse courseId
+    callback <| EditingCourse (courseId, EditingCourse.Error)
+
+let private updateEditingTitle services callback courseId =
+  function
+  | Some EditingTitle.Cancel ->
+    callback <| EditingCourse (courseId, EditingCourse.TitleCanceled)
+
+  | Some (EditingTitle.SetTitle title) ->
+    ( function
+      | true ->
+        callback <| EditingCourse (courseId, EditingCourse.TitleSet)
+
+      | false ->
+        callback <| EditingTitle (courseId, EditingTitle.TitleReserved) )
+
+    |> services.tryUpdateTitle courseId title
+
+  | None ->
+    callback <| EditingTitle (courseId, EditingTitle.Error)
 
 let update services commands callback =
   function
@@ -96,6 +125,10 @@ let update services commands callback =
     commands.getCreatingCourse ()
     |> updateCreatingCourse services callback
 
-  | EditingCourse courseId ->
+  | EditingCourse (courseId, _) ->
     commands.getEditingCourse ()
     |> updateEditingCourse callback courseId
+
+  | EditingTitle (courseId, _) ->
+    commands.getEditingTitle ()
+    |> updateEditingTitle services callback courseId

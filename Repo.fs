@@ -66,3 +66,26 @@ let updateState connection creatorId newState =
   |> Sql.executeNonQueryAsync
   |> Async.AwaitTask
   |> Async.Ignore
+
+let tryUpdateTitle connection courseId newTitle =
+  async
+    { try
+        return!
+          connection
+          |> Sql.existingConnection
+          |> Sql.query
+            "UPDATE courses
+            SET course_title = @course_title
+            WHERE course_id = @course_id"
+          |> Sql.parameters
+            [ "course_title", Sql.string newTitle
+              "course_id", Sql.int courseId ]
+          |> Sql.executeNonQueryAsync
+          |> Async.AwaitTask
+          |> Async.map(fun n -> n > 0)
+      with
+      | :? AggregateException as e when
+        (e.InnerException :? PostgresException) &&
+        (e.InnerException :?> PostgresException).SqlState
+          = PostgresErrorCodes.UniqueViolation ->
+        return false }
