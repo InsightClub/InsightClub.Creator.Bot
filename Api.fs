@@ -6,31 +6,7 @@ open Funogram
 open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
-open Microsoft.FSharpLu.Json
 
-module Json = Compact.Strict
-
-
-// State
-type TelegramBotState =
-  /// Id of the last message sent with the inline keyboard
-  { LastId: int64 option
-    State: BotState }
-
-let initialStateJson =
-  Json.serialize { LastId = None; State = initial }
-
-let getState connection telegramId =
-  Repo.getState initialStateJson connection telegramId
-  |> Async.map
-    ( fun (creatorId, stateJson) ->
-        let { LastId = lastId; State = state } =
-          Json.deserialize<TelegramBotState> stateJson
-
-        creatorId, lastId, state )
-
-let updateState connection creatorId (newState: TelegramBotState) =
-  Repo.updateState connection creatorId (Json.serialize newState)
 
 // Commands
 module Command =
@@ -277,13 +253,13 @@ let updateArrived getConnection ctx =
       ( fun user ->
           async
             { use connection = getConnection ()
-              let! creatorId, lastId, state = getState connection user.Id
+              let! creatorId, lastId, botState = State.get connection user.Id
               let services = Services.get connection creatorId
               let commands = getCommands ctx
               let callback = Async.singleton
-              let! newState = update services commands callback state
-              let! newLastId = respond ctx lastId newState
-              let telegramBotState = { LastId = newLastId; State = newState }
-              do! updateState connection creatorId telegramBotState } )
+              let! newBotState = update services commands callback botState
+              let! newLastId = respond ctx lastId newBotState
+              let state = State.create newLastId newBotState
+              do! State.update connection creatorId state } )
 
   |> Option.defaultValue Async.doNothing
