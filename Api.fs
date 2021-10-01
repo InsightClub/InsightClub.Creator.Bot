@@ -26,25 +26,6 @@ let (|PlainText|_|) (s: string) =
 
 let always x _ = x
 
-// Services
-let getServices connection creatorId =
-  let tryCreateCourse courseTitle callback =
-    async
-      { let! courseIdOption =
-          Repo.tryCreateCourse connection creatorId courseTitle
-
-        return! callback courseIdOption }
-
-  let tryUpdateTitle courseId courseTitle callback =
-    async
-      { let! wasUpdated =
-          Repo.tryUpdateTitle connection courseId courseTitle
-
-        return! callback wasUpdated }
-
-  { tryCreateCourse = tryCreateCourse
-    tryUpdateTitle = tryUpdateTitle }
-
 // Commands
 let start = "/start"
 let new' = "/new"
@@ -304,7 +285,7 @@ let updateArrived getConnection ctx =
           async
             { use connection = getConnection ()
               let! creatorId, lastId, state = getState connection user.Id
-              let services = getServices connection creatorId
+              let services = Services.get connection creatorId
               let commands = getCommands ctx
               let callback = Async.singleton
               let! newState = update services commands callback state
