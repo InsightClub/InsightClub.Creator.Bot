@@ -149,6 +149,48 @@ let inlineMarkup =
 
 let markup = inlineMarkup >> Option.map InlineKeyboardMarkup
 
+let removeLastMarkupMaybe config lastId userId =
+  async
+    { if Option.isSome lastId then
+        do!
+          Api.editMessageReplyMarkupBase
+            (Some <| Int userId) lastId None None
+          |> Api.api config
+          |> Async.Ignore }
+
+let sendMessage config lastId userId text keyboard  =
+  if not <| String.IsNullOrEmpty text then
+    Api.sendMessageBase
+      (Int userId) text None None None None (markup keyboard)
+    |> Api.api config
+    |> Async.map
+      ( fun r ->
+          match r with
+          | Ok m ->
+            m.ReplyMarkup
+            |> Option.map (always m.MessageId)
+
+          | Error _ -> None )
+  else
+    Async.singleton lastId
+
+let answerCallbackQuery config (query: CallbackQuery) =
+  Api.answerCallbackQueryBase
+    (Some query.Id) (Some String.Empty) None None None
+  |> Api.api config
+  |> Async.Ignore
+
+let editMessage config lastId userId text keyboard =
+  let id = Some <| Int userId
+
+  if not <| String.IsNullOrEmpty text then
+    Api.editMessageTextBase
+      id lastId None text None None (inlineMarkup keyboard)
+    |> Api.api config
+    |> Async.Ignore
+  else
+    Async.doNothing
+
 let idleMessage (user: User) =
   function
   | Idle.Started ->
@@ -203,68 +245,9 @@ let editingTitleMessage =
 let respond (ctx: UpdateContext) lastId state =
   // updateArrived must ensure user is present, so this call is safe
   let user = getUser ctx |> Option.get
-  let api r = Api.api ctx.Config r
 
-  let removeLastMarkupMaybe =
-    async
-      { if Option.isSome lastId then
-          do!
-            Api.editMessageReplyMarkupBase
-              (Some <| Int user.Id) lastId None None
-            |> api
-            |> Async.Ignore }
-
-  let sendMessage text keyboard =
-    if not <| String.IsNullOrEmpty text then
-      Api.sendMessageBase
-        (Int user.Id) text None None None None (markup keyboard)
-      |> api
-      |> Async.map
-        ( fun r ->
-            match r with
-            | Ok m ->
-              m.ReplyMarkup
-              |> Option.map (always m.MessageId)
-
-            | Error _ -> None )
-    else
-      Async.singleton lastId
-
-  let answerCallbackQuery (query: CallbackQuery) =
-    Api.answerCallbackQueryBase
-      (Some query.Id) (Some String.Empty) None None None
-    |> api
-    |> Async.Ignore
-
-  let editMessage text keyboard =
-    let id = Some <| Int user.Id
-
-    if not <| String.IsNullOrEmpty text then
-      Api.editMessageTextBase
-        id lastId None text None None (inlineMarkup keyboard)
-      |> api
-      |> Async.Ignore
-    else
-      Async.doNothing
-
-  let answer text keyboard =
-    async
-      { match ctx.Update with
-        | { Message = Some _ } ->
-          let! _ = Async.StartChild removeLastMarkupMaybe
-          return! sendMessage text keyboard
-
-        | { CallbackQuery = Some query } ->
-          let! _ = Async.StartChild (answerCallbackQuery query)
-          let! _ = Async.StartChild(editMessage text keyboard)
-          return
-            keyboard
-            |> Option.bind (always lastId)
-
-        | _ ->
-          return lastId }
-
-  ( match state with
+  let message, keyboard =
+    match state with
     | Inactive ->
       String.Empty, None
 
@@ -283,8 +266,33 @@ let respond (ctx: UpdateContext) lastId state =
 
     | EditingTitle (_, data) ->
       editingTitleMessage data,
-      Some [ [ button Message.cancel cancel ] ] )
-  ||> answer
+      Some [ [ button Message.cancel cancel ] ]
+
+  async
+    { match ctx.Update with
+      | { Message = Some _ } ->
+        let! _ =
+          removeLastMarkupMaybe ctx.Config lastId user.Id
+          |> Async.StartChild
+
+        return!
+          sendMessage ctx.Config lastId user.Id message keyboard
+
+      | { CallbackQuery = Some query } ->
+        let! _ =
+          answerCallbackQuery ctx.Config query
+          |> Async.StartChild
+
+        let! _ =
+          editMessage ctx.Config lastId user.Id message keyboard
+          |> Async.StartChild
+
+        return
+          keyboard
+          |> Option.bind (always lastId)
+
+      | _ ->
+        return lastId }
 
 // Main function
 let updateArrived getConnection ctx =
