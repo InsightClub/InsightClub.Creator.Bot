@@ -191,6 +191,11 @@ let editingTitleMessage =
   | EditingTitle.Error ->
     Message.error
 
+module Button =
+  let cancel = "Отмена ❌"
+  let exit = "Выход 🚪"
+  let editTitle = "Редактировать название ✏️"
+
 // Response
 let respond (ctx: UpdateContext) lastId state =
   // updateArrived must ensure user is present, so this call is safe
@@ -206,17 +211,17 @@ let respond (ctx: UpdateContext) lastId state =
 
     | CreatingCourse data ->
       creatingCourseMessage data,
-      Some [ [ button Message.cancel Command.cancel ] ]
+      Some [ [ button Button.cancel Command.cancel ] ]
 
     | EditingCourse (_, data) ->
       editingCourseMessage data,
       Some
-        [ [ button Message.editTitle Command.edit ]
-          [ button Message.exit Command.exit ] ]
+        [ [ button Button.editTitle Command.edit ]
+          [ button Button.exit Command.exit ] ]
 
     | EditingTitle (_, data) ->
       editingTitleMessage data,
-      Some [ [ button Message.cancel Command.cancel ] ]
+      Some [ [ button Button.cancel Command.cancel ] ]
 
   match ctx.Update with
   | { Message = Some _ } ->

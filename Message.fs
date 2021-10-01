@@ -7,15 +7,6 @@ open System.Text.RegularExpressions
 let c s = Regex("\n[ ]+").Replace(s, "\n")
 let f = sprintf
 
-// Line
-let ln = "\n"
-let doubleLn = ln + ln
-
-// Button texts
-let cancel = "Отмена"
-let exit = "Выход"
-let editTitle = "Редактировать название"
-
 // Messages
 let greeting firstName lastNameOption =
   let lastName =
