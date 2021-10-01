@@ -8,23 +8,14 @@ open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
 open Microsoft.FSharpLu.Json
 
+module Json = Compact.Strict
+
 
 // Types
 type TelegramBotState =
   /// Id of the last message sent with the inline keyboard
   { LastId: int64 option
     State: BotState }
-
-// Helpers
-module Json = Compact.Strict
-
-let (|Command|_|) command s =
-  if (s = command) then Some () else None
-
-let (|PlainText|_|) (s: string) =
-  if s.StartsWith "/" then None else Some s
-
-let always x _ = x
 
 // Commands
 let start = "/start"

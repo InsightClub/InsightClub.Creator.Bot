@@ -2,6 +2,14 @@
 module InsightClub.Creator.Bot.Helpers
 
 
+let always x _ = x
+
+let (|Command|_|) command s =
+  if (s = command) then Some () else None
+
+let (|PlainText|_|) (s: string) =
+  if s.StartsWith "/" then None else Some s
+
 module Async =
   let singleton n = async { return n }
 
