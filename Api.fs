@@ -11,72 +11,12 @@ open Microsoft.FSharpLu.Json
 module Json = Compact.Strict
 
 
-// Types
+// State
 type TelegramBotState =
   /// Id of the last message sent with the inline keyboard
   { LastId: int64 option
     State: BotState }
 
-// Commands
-let start = "/start"
-let new' = "/new"
-let cancel = "/cancel"
-let exit = "/exit"
-let edit = "/edit"
-
-let getCommands ctx =
-  let getInactive () =
-    ctx.Update.Message
-    |> Option.bind (fun m -> m.Text)
-    |> Option.filter ((=) start)
-    |> Option.map (always Inactive.Start)
-
-  let getIdle () =
-    ctx.Update.Message
-    |> Option.bind (fun m -> m.Text)
-    |> Option.filter ((=) new')
-    |> Option.map (always Idle.CreateCourse)
-
-  let getCreatingCourse () =
-    match ctx.Update with
-    | { CallbackQuery = Some { Data = Some (Command cancel) } } ->
-      Some CreatingCourse.Cancel
-
-    | { Message = Some { Text = Some (PlainText courseTitle) } } ->
-      Some <| CreatingCourse.CreateCourse courseTitle
-
-    | _ ->
-      None
-
-  let getEditingCourse () =
-    match ctx.Update.CallbackQuery with
-    | Some { Data = Some (Command edit) } ->
-      Some EditingCourse.EditTitle
-
-    | Some { Data = Some (Command exit) } ->
-      Some EditingCourse.Exit
-
-    | _ ->
-      None
-
-  let getEditingTitle () =
-    match ctx.Update with
-    | { CallbackQuery = Some { Data = Some (Command cancel) } } ->
-      Some EditingTitle.Cancel
-
-    | { Message = Some { Text = Some (PlainText courseTitle) } } ->
-      Some <| EditingTitle.SetTitle courseTitle
-
-    | _ ->
-      None
-
-  { getInactive = getInactive
-    getIdle = getIdle
-    getCreatingCourse = getCreatingCourse
-    getEditingCourse = getEditingCourse
-    getEditingTitle = getEditingTitle }
-
-// State
 let initialStateJson =
   Json.serialize { LastId = None; State = initial }
 
@@ -91,6 +31,66 @@ let getState connection telegramId =
 
 let updateState connection creatorId (newState: TelegramBotState) =
   Repo.updateState connection creatorId (Json.serialize newState)
+
+// Commands
+module Command =
+  let start = "/start"
+  let new' = "/new"
+  let cancel = "/cancel"
+  let exit = "/exit"
+  let edit = "/edit"
+
+let getCommands ctx =
+  let getInactive () =
+    ctx.Update.Message
+    |> Option.bind (fun m -> m.Text)
+    |> Option.filter ((=) Command.start)
+    |> Option.map (always Inactive.Start)
+
+  let getIdle () =
+    ctx.Update.Message
+    |> Option.bind (fun m -> m.Text)
+    |> Option.filter ((=) Command.new')
+    |> Option.map (always Idle.CreateCourse)
+
+  let getCreatingCourse () =
+    match ctx.Update with
+    | { CallbackQuery = Some { Data = Some (Command Command.cancel) } } ->
+      Some CreatingCourse.Cancel
+
+    | { Message = Some { Text = Some (PlainText courseTitle) } } ->
+      Some <| CreatingCourse.CreateCourse courseTitle
+
+    | _ ->
+      None
+
+  let getEditingCourse () =
+    match ctx.Update.CallbackQuery with
+    | Some { Data = Some (Command Command.edit) } ->
+      Some EditingCourse.EditTitle
+
+    | Some { Data = Some (Command Command.exit) } ->
+      Some EditingCourse.Exit
+
+    | _ ->
+      None
+
+  let getEditingTitle () =
+    match ctx.Update with
+    | { CallbackQuery = Some { Data = Some (Command Command.cancel) } } ->
+      Some EditingTitle.Cancel
+
+    | { Message = Some { Text = Some (PlainText courseTitle) } } ->
+      Some <| EditingTitle.SetTitle courseTitle
+
+    | _ ->
+      None
+
+  { getInactive = getInactive
+    getIdle = getIdle
+    getCreatingCourse = getCreatingCourse
+    getEditingCourse = getEditingCourse
+    getEditingTitle = getEditingTitle }
 
 // Api helpers
 let getUser ctx =
@@ -119,7 +119,9 @@ let inlineMarkup =
     ( fun markup ->
       { InlineKeyboard = List.map Seq.ofList markup } )
 
-let markup = inlineMarkup >> Option.map InlineKeyboardMarkup
+let markup =
+  inlineMarkup
+  >> Option.map InlineKeyboardMarkup
 
 let removeLastMarkupMaybe config lastId userId =
   async
@@ -228,17 +230,17 @@ let respond (ctx: UpdateContext) lastId state =
 
     | CreatingCourse data ->
       creatingCourseMessage data,
-      Some [ [ button Message.cancel cancel ] ]
+      Some [ [ button Message.cancel Command.cancel ] ]
 
     | EditingCourse (_, data) ->
       editingCourseMessage data,
       Some
-        [ [ button Message.editTitle edit ]
-          [ button Message.exit exit ] ]
+        [ [ button Message.editTitle Command.edit ]
+          [ button Message.exit Command.exit ] ]
 
     | EditingTitle (_, data) ->
       editingTitleMessage data,
-      Some [ [ button Message.cancel cancel ] ]
+      Some [ [ button Message.cancel Command.cancel ] ]
 
   match ctx.Update with
   | { Message = Some _ } ->
