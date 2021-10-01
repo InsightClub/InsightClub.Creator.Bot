@@ -268,18 +268,19 @@ let respond (ctx: UpdateContext) lastId state =
       editingTitleMessage data,
       Some [ [ button Message.cancel cancel ] ]
 
-  async
-    { match ctx.Update with
-      | { Message = Some _ } ->
-        let! _ =
+  match ctx.Update with
+  | { Message = Some _ } ->
+    async
+      { let! _ =
           removeLastMarkupMaybe ctx.Config lastId user.Id
           |> Async.StartChild
 
         return!
-          sendMessage ctx.Config lastId user.Id message keyboard
+          sendMessage ctx.Config lastId user.Id message keyboard }
 
-      | { CallbackQuery = Some query } ->
-        let! _ =
+  | { CallbackQuery = Some query } ->
+    async
+      { let! _ =
           answerCallbackQuery ctx.Config query
           |> Async.StartChild
 
@@ -289,10 +290,10 @@ let respond (ctx: UpdateContext) lastId state =
 
         return
           keyboard
-          |> Option.bind (always lastId)
+          |> Option.bind (always lastId) }
 
-      | _ ->
-        return lastId }
+  | _ ->
+    Async.singleton lastId
 
 // Main function
 let updateArrived getConnection ctx =
