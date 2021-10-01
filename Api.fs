@@ -1,6 +1,7 @@
 module InsightClub.Creator.Bot.Api
 
 open Core
+open System
 open Funogram
 open Funogram.Telegram
 open Funogram.Telegram.Bot
@@ -47,10 +48,9 @@ let getServices connection creatorId =
 // Commands
 let start = "/start"
 let new' = "/new"
-let cancelCourse = "/cancel_course"
-let exitEditing = "/exit_editing"
-let editTitle = "/edit_title"
-let cancelTitle = "/cancel_title"
+let cancel = "/cancel"
+let exit = "/exit"
+let edit = "/edit"
 
 let getCommands ctx =
   let getInactive () =
@@ -67,7 +67,7 @@ let getCommands ctx =
 
   let getCreatingCourse () =
     match ctx.Update with
-    | { CallbackQuery = Some { Data = Some (Command cancelCourse) } } ->
+    | { CallbackQuery = Some { Data = Some (Command cancel) } } ->
       Some CreatingCourse.Cancel
 
     | { Message = Some { Text = Some (PlainText courseTitle) } } ->
@@ -78,10 +78,10 @@ let getCommands ctx =
 
   let getEditingCourse () =
     match ctx.Update.CallbackQuery with
-    | Some { Data = Some (Command editTitle) } ->
+    | Some { Data = Some (Command edit) } ->
       Some EditingCourse.EditTitle
 
-    | Some { Data = Some (Command exitEditing) } ->
+    | Some { Data = Some (Command exit) } ->
       Some EditingCourse.Exit
 
     | _ ->
@@ -89,7 +89,7 @@ let getCommands ctx =
 
   let getEditingTitle () =
     match ctx.Update with
-    | { CallbackQuery = Some { Data = Some (Command cancelTitle) } } ->
+    | { CallbackQuery = Some { Data = Some (Command cancel) } } ->
       Some EditingTitle.Cancel
 
     | { Message = Some { Text = Some (PlainText courseTitle) } } ->
@@ -142,151 +142,149 @@ let button text data =
     SwitchInlineQuery = None
     SwitchInlineQueryCurrentChat = None }
 
-let inlineMarkup markup =
-  { InlineKeyboard = List.map Seq.ofList markup }
+let inlineMarkup =
+  Option.map
+    ( fun markup ->
+      { InlineKeyboard = List.map Seq.ofList markup } )
 
-let markup = inlineMarkup >> InlineKeyboardMarkup
+let markup = inlineMarkup >> Option.map InlineKeyboardMarkup
+
+let idleMessage (user: User) =
+  function
+  | Idle.Started ->
+    Message.greeting user.FirstName user.LastName
+
+  | Idle.CourseCanceled ->
+    Message.courseCanceled
+
+  | Idle.ExitedEditing ->
+    Message.exitedEditing
+
+  | Idle.Error ->
+    Message.error
+
+let creatingCourseMessage =
+  function
+  | CreatingCourse.Started ->
+    Message.courseStarted
+
+  | CreatingCourse.TitleReserved ->
+    Message.titleReserved
+
+  | CreatingCourse.Error ->
+    Message.error
+
+let editingCourseMessage =
+  function
+  | EditingCourse.Started ->
+    Message.editingCourse
+
+  | EditingCourse.TitleCanceled ->
+    Message.titleCanceled
+
+  | EditingCourse.TitleSet ->
+    Message.titleSet
+
+  | EditingCourse.Error ->
+    Message.error
+
+let editingTitleMessage =
+  function
+  | EditingTitle.Started ->
+    Message.editingTitle
+
+  | EditingTitle.TitleReserved ->
+    Message.titleReserved
+
+  | EditingTitle.Error ->
+    Message.error
 
 // Response
-let respond (ctx: UpdateContext) lastId =
+let respond (ctx: UpdateContext) lastId state =
   // updateArrived must ensure user is present, so this call is safe
   let user = getUser ctx |> Option.get
   let api r = Api.api ctx.Config r
 
-  let removeLastMarkupMaybe () =
-    lastId
-    |> Option.map
-      ( fun lastId ->
-          Api.editMessageReplyMarkupBase
-            (Some <| Int user.Id) (Some lastId) None None
-          |> api
-          |> Async.Ignore )
-    |> Option.defaultValue Async.doNothing
-
-  let answerCallbackMaybe () =
-    ctx.Update.CallbackQuery
-    |> Option.map
-      ( fun query ->
-          Api.answerCallbackQueryBase (Some query.Id) (Some "") None None None
-          |> api
-          |> Async.Ignore )
-    |> Option.defaultValue Async.doNothing
-
-  let sendMessage text =
+  let removeLastMarkupMaybe =
     async
-      { do! removeLastMarkupMaybe ()
-        do! answerCallbackMaybe ()
-        let! _ = Api.sendMessage user.Id text |> api
-        return None }
-
-  let sendMessageMarkup text markup =
-    async
-      { do! removeLastMarkupMaybe ()
-        do! answerCallbackMaybe ()
-        let! r = Api.sendMessageMarkup user.Id text markup |> api
-        return
-          match r with
-          | Ok m -> Some m.MessageId
-          | Error _ -> None }
-
-  let editLastMessage text markup =
-    match lastId with
-    | Some lastId ->
-      async
-        { do! answerCallbackMaybe ()
-
-          let! _ =
-            Api.editMessageTextBase
-              (Some <| Int user.Id) (Some lastId) None text None None markup
+      { if Option.isSome lastId then
+          do!
+            Api.editMessageReplyMarkupBase
+              (Some <| Int user.Id) lastId None None
             |> api
+            |> Async.Ignore }
 
+  let sendMessage text keyboard =
+    if not <| String.IsNullOrEmpty text then
+      Api.sendMessageBase
+        (Int user.Id) text None None None None (markup keyboard)
+      |> api
+      |> Async.map
+        ( fun r ->
+            match r with
+            | Ok m ->
+              m.ReplyMarkup
+              |> Option.map (always m.MessageId)
+
+            | Error _ -> None )
+    else
+      Async.singleton lastId
+
+  let answerCallbackQuery (query: CallbackQuery) =
+    Api.answerCallbackQueryBase
+      (Some query.Id) (Some String.Empty) None None None
+    |> api
+    |> Async.Ignore
+
+  let editMessage text keyboard =
+    let id = Some <| Int user.Id
+
+    if not <| String.IsNullOrEmpty text then
+      Api.editMessageTextBase
+        id lastId None text None None (inlineMarkup keyboard)
+      |> api
+      |> Async.Ignore
+    else
+      Async.doNothing
+
+  let answer text keyboard =
+    async
+      { match ctx.Update with
+        | { Message = Some _ } ->
+          let! _ = Async.StartChild removeLastMarkupMaybe
+          return! sendMessage text keyboard
+
+        | { CallbackQuery = Some query } ->
+          let! _ = Async.StartChild (answerCallbackQuery query)
+          let! _ = Async.StartChild(editMessage text keyboard)
           return
-            markup
-            |> Option.map (always lastId) }
+            keyboard
+            |> Option.bind (always lastId)
 
-    | None ->
-      Async.singleton None
+        | _ ->
+          return lastId }
 
-  function
-  | Inactive ->
-    Async.singleton None
+  ( match state with
+    | Inactive ->
+      String.Empty, None
 
-  | Idle Idle.Started ->
-    sendMessage <| Message.greeting user.FirstName user.LastName
+    | Idle data ->
+      idleMessage user data, None
 
-  | Idle Idle.CourseCanceled ->
-    editLastMessage Message.courseCanceled None
+    | CreatingCourse data ->
+      creatingCourseMessage data,
+      Some [ [ button Message.cancel cancel ] ]
 
-  | Idle Idle.ExitedEditing ->
-    editLastMessage Message.exitedEditing None
+    | EditingCourse (_, data) ->
+      editingCourseMessage data,
+      Some
+        [ [ button Message.editTitle edit ]
+          [ button Message.exit exit ] ]
 
-  | Idle Idle.Error ->
-    sendMessage Message.error
-
-  | CreatingCourse data ->
-    let keyboard = [ [ button Message.cancel cancelCourse ] ]
-
-    match data with
-    | CreatingCourse.Started ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.courseStarted
-
-    | CreatingCourse.TitleReserved ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.titleReserved
-
-    | CreatingCourse.Error ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.error
-
-  | EditingCourse (_, data) ->
-    let keyboard =
-      [ [ button Message.editTitle editTitle ]
-        [ button Message.exit exitEditing ] ]
-
-    match data with
-    | EditingCourse.Started ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.editingCourse
-
-    | EditingCourse.TitleCanceled ->
-      keyboard
-      |> inlineMarkup
-      |> Some
-      |> editLastMessage Message.titleCanceled
-
-    | EditingCourse.TitleSet ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.titleSet
-
-    | EditingCourse.Error ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.error
-
-  | EditingTitle (_, data) ->
-    let keyboard = [ [ button Message.cancel cancelTitle ] ]
-
-    match data with
-    | EditingTitle.Started ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.editingTitle
-
-    | EditingTitle.TitleReserved ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.titleReserved
-
-    | EditingTitle.Error ->
-      keyboard
-      |> markup
-      |> sendMessageMarkup Message.error
+    | EditingTitle (_, data) ->
+      editingTitleMessage data,
+      Some [ [ button Message.cancel cancel ] ] )
+  ||> answer
 
 // Main function
 let updateArrived getConnection ctx =
