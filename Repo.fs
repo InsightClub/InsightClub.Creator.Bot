@@ -4,6 +4,7 @@ open Npgsql
 open Npgsql.FSharp
 open System
 
+
 let tryCreateCourse connection creatorId courseTitle = async {
   try
     return!
@@ -87,3 +88,15 @@ let tryUpdateTitle connection courseId newTitle = async {
     (e.InnerException :?> PostgresException).SqlState
       = PostgresErrorCodes.UniqueViolation ->
     return false }
+
+let getCourseTitle connection courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT course_title
+    FROM courses
+    WHERE course_id = @course_id"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync ( fun read -> read.string "course_title" )
+  |> Async.AwaitTask

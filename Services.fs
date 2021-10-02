@@ -16,5 +16,12 @@ let get connection creatorId =
 
     return! callback wasUpdated }
 
+  let getCourseTitle courseId callback = async {
+    let! courseTitle =
+      Repo.getCourseTitle connection courseId
+
+    return! callback courseTitle }
+
   { tryCreateCourse = tryCreateCourse
-    tryUpdateTitle = tryUpdateTitle }
+    tryUpdateTitle = tryUpdateTitle
+    getCourseTitle = getCourseTitle }

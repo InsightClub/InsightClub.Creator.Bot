@@ -180,7 +180,7 @@ let editingCourseMessage =
   | EditingCourse.Error ->
     Message.error
 
-let editingTitleMessage =
+let editingTitleMessage title = // !!!!!!
   function
   | EditingTitle.Started ->
     Message.editingTitle
@@ -219,8 +219,8 @@ let respond (ctx: UpdateContext) lastId state =
         [ [ button Button.editTitle Command.edit ]
           [ button Button.exit Command.exit ] ]
 
-    | EditingTitle (_, data) ->
-      editingTitleMessage data,
+    | EditingTitle (_, title, data) ->
+      editingTitleMessage title data,
       Some [ [ button Button.cancel Command.cancel ] ]
 
   match ctx.Update with
