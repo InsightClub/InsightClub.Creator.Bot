@@ -6,6 +6,7 @@ open Funogram
 open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
+open System.Text.RegularExpressions
 
 
 // Commands
@@ -130,6 +131,10 @@ let answerCallbackQuery config (query: CallbackQuery) =
   |> Api.api config
   |> Async.Ignore
 
+// Text cleaning
+let c s = Regex("\n[ ]+").Replace(s, "\n")
+let f = sprintf
+
 let editMessage config lastId userId text keyboard =
   let id = Some <| Int userId
 
@@ -144,57 +149,94 @@ let editMessage config lastId userId text keyboard =
 let idleMessage (user: User) =
   function
   | Idle.Started ->
-    Message.greeting user.FirstName user.LastName
+    let lastName =
+      user.LastName
+      |> Option.map ((+) " ")
+      |> Option.defaultValue ""
+
+    f "Добро пожаловать в InsightClub.Creator.Bot, %s%s! ✨ \
+      С помощью этого бота Вы можете конструировать свои курсы!
+
+      Отправьте /help для получения помощи. ℹ️" user.FirstName lastName
+    |> c
 
   | Idle.CourseCanceled ->
-    Message.courseCanceled
+    "Создание курса отменено."
 
   | Idle.ExitedEditing ->
-    Message.exitedEditing
+    "Редактирование завершено."
 
   | Idle.Error ->
-    Message.error
+    "Неизвестная команда. Отправьте /help для получения помощи. ℹ️"
 
 let creatingCourseMessage =
   function
   | CreatingCourse.Started ->
-    Message.courseStarted
+    c "Режим создания нового курса.
+      Как Вы хотели бы назвать новый курс? 📝"
 
   | CreatingCourse.TitleReserved ->
-    Message.titleReserved
+    "Курс с таким названием уже существует. Пожалуйста, выберите другое."
 
   | CreatingCourse.Error ->
-    Message.error
+    c "Неизвестная команда.
+
+      Режим создания нового курса.
+      Как Вы хотели бы назвать новый курс? 📝"
 
 let editingCourseMessage =
   function
   | EditingCourse.Started ->
-    Message.editingCourse
+    c "Режим редактирования курса. ✏️
+      Для просмотра данных о курсе выберите соответствующий раздел. \
+      Помимо просмотра, разделы позволяют также и \
+      редактировать соответствующие данные курса."
 
   | EditingCourse.TitleCanceled ->
-    Message.titleCanceled
+    c "Редактирование заголовка отменено.
+
+      Режим редактирования курса. ✏️
+      Выберите что Вы хотели бы сделать дальше."
 
   | EditingCourse.TitleSet ->
-    Message.titleSet
+    c "Название курса обновлено!
+
+      Режим редактирования курса. ✏️
+      Выберите что Вы хотели бы сделать дальше."
 
   | EditingCourse.Error ->
-    Message.error
+    c "Неизвестная команда.
 
-let editingTitleMessage title = // !!!!!!
+      Режим редактирования курса. ✏️
+      Выберите что Вы хотели бы сделать дальше."
+
+let editingTitleMessage title =
   function
   | EditingTitle.Started ->
-    Message.editingTitle
+    f "Редактируем название курса.
+
+      Текущее название курса: %s
+      Отправьте новое, чтоб изменить." title
+    |> c
 
   | EditingTitle.TitleReserved ->
-    Message.titleReserved
+    f "Курс с таким названием уже существует.
+
+      Текущее название курса: %s
+      Отправьте новое, чтоб изменить." title
+    |> c
 
   | EditingTitle.Error ->
-    Message.error
+    f "Неизвестная команда.
+
+      Текущее название курса: %s
+      Отправьте новое, чтоб изменить." title
+    |> c
 
 module Button =
   let cancel = "Отмена ❌"
   let exit = "Выход 🚪"
-  let editTitle = "Редактировать название ✏️"
+  let title = "Название ✏️"
 
 // Response
 let respond (ctx: UpdateContext) lastId state =
@@ -216,7 +258,7 @@ let respond (ctx: UpdateContext) lastId state =
     | EditingCourse (_, data) ->
       editingCourseMessage data,
       Some
-        [ [ button Button.editTitle Command.edit ]
+        [ [ button Button.title Command.edit ]
           [ button Button.exit Command.exit ] ]
 
     | EditingTitle (_, title, data) ->
