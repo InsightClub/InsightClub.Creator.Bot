@@ -326,7 +326,7 @@ module Button =
 
 // Response for state
 let handleState (ctx: UpdateContext) lastId state =
-  // onUpdate must ensure user is present, so this call is safe
+  // onUpdate must ensure user is available, so this call is safe
   let user = Option.get <| getUser ctx
 
   let message, keyboard =
@@ -387,7 +387,7 @@ let handleState (ctx: UpdateContext) lastId state =
 
 // Response for intent
 let handleIntent (ctx: UpdateContext) lastId =
-  // onUpdate must ensure user is present, so this call is safe
+  // onUpdate must ensure user is available, so this call is safe
   let user = Option.get <| getUser ctx
   let config = ctx.Config
 
@@ -421,6 +421,6 @@ let onUpdate getConnection ctx =
     do! State.update connection creatorId lastId state }
 
   ctx
-  |> getUser // Ensure user is present
+  |> getUser // Ensure user is available
   |> Option.map update
   |> Option.defaultValue Async.doNothing
