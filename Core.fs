@@ -9,8 +9,8 @@ module Inactive =
   type Command = Start
 
 module Idle =
-  type Command = CreateCourse
-  type Data = Started | CourseCanceled | ExitedEditing | Error
+  type Command = Help | CreateCourse
+  type Data = Started | Helping | CourseCanceled | ExitedEditing | Error
 
 module CreatingCourse =
   type Command = Cancel | CreateCourse of CourseTitle
@@ -18,7 +18,7 @@ module CreatingCourse =
 
 module EditingCourse =
   type Command = EditTitle | Exit
-  type Data = Started | TitleCanceled | TitleSet | Error
+  type Data = CourseCreated | TitleCanceled | TitleSet | Error
 
 module EditingTitle =
   type Command = Cancel | SetTitle of CourseTitle
@@ -60,6 +60,9 @@ let private updateInactive callback =
 
 let private updateIdle callback =
   function
+  | Some Idle.Help ->
+    callback <| Idle Idle.Helping
+
   | Some Idle.CreateCourse ->
     callback <| CreatingCourse CreatingCourse.Started
 
@@ -74,7 +77,7 @@ let private updateCreatingCourse services callback =
   | Some (CreatingCourse.CreateCourse title) ->
     ( function
       | Some courseId ->
-        callback <| EditingCourse (courseId, EditingCourse.Started)
+        callback <| EditingCourse (courseId, EditingCourse.CourseCreated)
 
       | None ->
         callback <| CreatingCourse CreatingCourse.TitleReserved )
