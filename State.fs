@@ -27,5 +27,6 @@ let get connection telegramId =
 
         creatorId, lastId, state )
 
-let update connection creatorId (newState: State) =
-  Repo.updateState connection creatorId (Json.serialize newState)
+let update connection creatorId lastId state =
+  Repo.updateState
+    connection creatorId (create lastId state |> Json.serialize)

@@ -418,8 +418,7 @@ let onUpdate getConnection ctx =
     let! (state, intent) = update services commands callback state
     let! lastId = handleIntent ctx lastId intent
     let! lastId = handleState ctx lastId state
-    let dbState = State.create lastId state
-    do! State.update connection creatorId dbState }
+    do! State.update connection creatorId lastId state }
 
   ctx
   |> getUser // Ensure user is present
