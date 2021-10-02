@@ -50,7 +50,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (Api.updateArrived getConnection) None
+    startBot botConfig (Api.onUpdate getConnection) None
 
   async {
     do! setWebhook ()

@@ -53,7 +53,7 @@ let getState initialState connection telegramId =
         read.string "telegram_bot_state" )
   |> Async.AwaitTask
 
-let updateState connection creatorId newState =
+let updateState connection creatorId state =
   connection
   |> Sql.existingConnection
   |> Sql.query
@@ -61,13 +61,13 @@ let updateState connection creatorId newState =
     SET telegram_bot_state = @new_state
     WHERE creator_id = @creator_id"
   |> Sql.parameters
-    [ "new_state", Sql.string newState
+    [ "new_state", Sql.string state
       "creator_id", Sql.int creatorId ]
   |> Sql.executeNonQueryAsync
   |> Async.AwaitTask
   |> Async.Ignore
 
-let tryUpdateTitle connection courseId newTitle = async {
+let tryUpdateTitle connection courseId courseTitle = async {
   try
     return!
       connection
@@ -77,7 +77,7 @@ let tryUpdateTitle connection courseId newTitle = async {
         SET course_title = @course_title
         WHERE course_id = @course_id"
       |> Sql.parameters
-        [ "course_title", Sql.string newTitle
+        [ "course_title", Sql.string courseTitle
           "course_id", Sql.int courseId ]
       |> Sql.executeNonQueryAsync
       |> Async.AwaitTask
@@ -100,3 +100,29 @@ let getCourseTitle connection courseId =
     [ "course_id", Sql.int courseId ]
   |> Sql.executeRowAsync ( fun read -> read.string "course_title" )
   |> Async.AwaitTask
+
+let getCourseDesc connection courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT course_description
+    FROM courses
+    WHERE course_id = @course_id"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync ( fun read -> read.string "course_description" )
+  |> Async.AwaitTask
+
+let updateDesc connection courseId courseDesc =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "UPDATE courses
+    SET course_description = @course_description
+    WHERE course_id = @course_id"
+  |> Sql.parameters
+    [ "course_description", Sql.string courseDesc
+      "course_id", Sql.int courseId ]
+  |> Sql.executeNonQueryAsync
+  |> Async.AwaitTask
+  |> Async.Ignore

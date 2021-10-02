@@ -16,7 +16,9 @@ module Command =
   let new' = "/new"
   let cancel = "/cancel"
   let exit = "/exit"
-  let edit = "/edit"
+  let title = "/title"
+  let desc = "/desc"
+  let show = "/show"
 
 let getCommands ctx =
   let getInactive () =
@@ -49,8 +51,11 @@ let getCommands ctx =
 
   let getEditingCourse () =
     match ctx.Update.CallbackQuery with
-    | Some { Data = Some (Command Command.edit) } ->
+    | Some { Data = Some (Command Command.title) } ->
       Some EditingCourse.EditTitle
+
+    | Some { Data = Some (Command Command.desc) } ->
+      Some EditingCourse.EditDesc
 
     | Some { Data = Some (Command Command.exit) } ->
       Some EditingCourse.Exit
@@ -69,11 +74,26 @@ let getCommands ctx =
     | _ ->
       None
 
+  let getEditingDesc () =
+    match ctx.Update with
+    | { CallbackQuery = Some { Data = Some (Command Command.show) } } ->
+      Some EditingDesc.Show
+
+    | { CallbackQuery = Some { Data = Some (Command Command.cancel) } } ->
+      Some EditingDesc.Cancel
+
+    | { Message = Some { Text = Some (PlainText courseDesc) } } ->
+      Some <| EditingDesc.SetDesc courseDesc
+
+    | _ ->
+      None
+
   { getInactive = getInactive
     getIdle = getIdle
     getCreatingCourse = getCreatingCourse
     getEditingCourse = getEditingCourse
-    getEditingTitle = getEditingTitle }
+    getEditingTitle = getEditingTitle
+    getEditingDesc = getEditingDesc }
 
 // Api helpers
 let getUser ctx =
@@ -238,6 +258,18 @@ let editingCourseMessage =
       Режим редактирования курса. ✏️
       Выберите что Вы хотели бы сделать дальше."
 
+  | EditingCourse.DescCanceled ->
+    c "Редактирование описания отменено. 👌
+
+      Режим редактирования курса. ✏️
+      Выберите что Вы хотели бы сделать дальше."
+
+  | EditingCourse.DescSet ->
+    c "Описание курса обновлено! ✅
+
+      Режим редактирования курса. ✏️
+      Выберите что Вы хотели бы сделать дальше."
+
   | EditingCourse.Error ->
     f "Неизвестная команда. %s
 
@@ -268,14 +300,33 @@ let editingTitleMessage title =
       Отправьте новое, чтоб изменить." (randomError()) title
     |> c
 
+let editingDescMessage =
+  function
+  | EditingDesc.Started ->
+    c "Редактируем описание курса. 👽
+
+      Отправьте текст, чтоб изменить описание.
+      Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
+      будут видеть в первую очередь, не считая названия курса."
+
+  | EditingDesc.Error ->
+    f "Неизвестная команда. %s
+
+      Отправьте текст, чтоб изменить описание курса.
+      Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
+      будут видеть в первую очередь, не считая названия курса." (randomError())
+    |> c
+
 module Button =
   let cancel = "Отмена ❌"
   let exit = "Выход 🚪"
   let title = "Название ✏️"
+  let desc = "Описание 🖋"
+  let show = "Показать 👁"
 
-// Response
-let respond (ctx: UpdateContext) lastId state =
-  // updateArrived must ensure user is present, so this call is safe
+// Response for state
+let handleState (ctx: UpdateContext) lastId state =
+  // onUpdate must ensure user is present, so this call is safe
   let user = Option.get <| getUser ctx
 
   let message, keyboard =
@@ -283,22 +334,28 @@ let respond (ctx: UpdateContext) lastId state =
     | Inactive ->
       String.Empty, None
 
-    | Idle data ->
-      idleMessage user data, None
+    | Idle msg ->
+      idleMessage user msg, None
 
-    | CreatingCourse data ->
-      creatingCourseMessage data,
+    | CreatingCourse msg ->
+      creatingCourseMessage msg,
       Some [ [ button Button.cancel Command.cancel ] ]
 
-    | EditingCourse (_, data) ->
-      editingCourseMessage data,
+    | EditingCourse (_, msg) ->
+      editingCourseMessage msg,
       Some
-        [ [ button Button.title Command.edit ]
+        [ [ button Button.title Command.title
+            button Button.desc Command.desc ]
           [ button Button.exit Command.exit ] ]
 
-    | EditingTitle (_, title, data) ->
-      editingTitleMessage title data,
+    | EditingTitle (_, title, msg) ->
+      editingTitleMessage title msg,
       Some [ [ button Button.cancel Command.cancel ] ]
+
+    | EditingDesc (_, msg) ->
+      editingDescMessage msg,
+      Some [ [ button Button.show Command.show
+               button Button.cancel Command.cancel ] ]
 
   match ctx.Update with
   | { Message = Some _ } -> async {
@@ -314,29 +371,55 @@ let respond (ctx: UpdateContext) lastId state =
       answerCallbackQuery ctx.Config query
       |> Async.StartChild
 
-    let! _ =
-      editMessage ctx.Config lastId user.Id message keyboard
-      |> Async.StartChild
+    if lastId.IsSome then
+      let! _ =
+        editMessage ctx.Config lastId user.Id message keyboard
 
-    return
-      keyboard
-      |> Option.bind (always lastId) }
+      return
+        keyboard
+        |> Option.bind (always lastId)
+    else
+      return!
+        sendMessage ctx.Config lastId user.Id message keyboard }
 
   | _ ->
     Async.singleton lastId
 
+// Response for intent
+let handleIntent (ctx: UpdateContext) lastId =
+  // onUpdate must ensure user is present, so this call is safe
+  let user = Option.get <| getUser ctx
+  let config = ctx.Config
+
+  function
+  | Nothing ->
+    Async.singleton lastId
+
+  | SendText desc -> async {
+    let! _ =
+      removeLastMarkupMaybe config lastId user.Id
+      |> Async.StartChild
+
+    do!
+      Api.sendMessage user.Id desc
+      |> Api.api config
+      |> Async.Ignore
+
+    return None }
+
 // Main function
-let updateArrived getConnection ctx =
+let onUpdate getConnection ctx =
   let update (user: User) = async {
     use connection = getConnection ()
-    let! creatorId, lastId, botState = State.get connection user.Id
+    let! creatorId, lastId, state = State.get connection user.Id
     let services = Services.get connection creatorId
     let commands = getCommands ctx
     let callback = Async.singleton
-    let! newBotState = update services commands callback botState
-    let! newLastId = respond ctx lastId newBotState
-    let state = State.create newLastId newBotState
-    do! State.update connection creatorId state }
+    let! (state, intent) = update services commands callback state
+    let! lastId = handleIntent ctx lastId intent
+    let! lastId = handleState ctx lastId state
+    let dbState = State.create lastId state
+    do! State.update connection creatorId dbState }
 
   ctx
   |> getUser // Ensure user is present

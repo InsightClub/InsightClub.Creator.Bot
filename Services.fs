@@ -22,6 +22,19 @@ let get connection creatorId =
 
     return! callback courseTitle }
 
+  let getCourseDesc courseId callback = async {
+    let! desc =
+      Repo.getCourseDesc connection courseId
+
+    return! callback desc }
+
+  let updateDesc courseId courseDesc callback = async {
+    do! Repo.updateDesc connection courseId courseDesc
+
+    return! callback () }
+
   { tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
-    getCourseTitle = getCourseTitle }
+    getCourseTitle = getCourseTitle
+    getCourseDesc = getCourseDesc
+    updateDesc = updateDesc }
