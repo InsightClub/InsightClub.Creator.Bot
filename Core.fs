@@ -50,7 +50,7 @@ type BotState =
 
 type BotIntent =
   | Nothing
-  | SendDesc of CourseDesc
+  | ShowDesc of CourseDesc
 
 type CommandGetter<'c> = unit -> Option<'c>
 
@@ -175,7 +175,7 @@ let private updateEditingDesc services callback courseId =
   | Some EditingDesc.Show ->
     ( fun desc ->
         EditingDesc (courseId, EditingDesc.Started)
-        &> SendDesc desc
+        &> ShowDesc desc
         |> callback )
     |> services.getCourseDesc courseId
 

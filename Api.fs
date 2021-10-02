@@ -395,7 +395,7 @@ let handleIntent (ctx: UpdateContext) lastId =
   | Nothing ->
     Async.singleton lastId
 
-  | SendDesc text -> async {
+  | ShowDesc text -> async {
     let! _ =
       removeLastMarkupMaybe config lastId user.Id
       |> Async.StartChild
