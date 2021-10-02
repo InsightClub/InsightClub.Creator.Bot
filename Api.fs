@@ -395,13 +395,13 @@ let handleIntent (ctx: UpdateContext) lastId =
   | Nothing ->
     Async.singleton lastId
 
-  | SendText desc -> async {
+  | SendText text -> async {
     let! _ =
       removeLastMarkupMaybe config lastId user.Id
       |> Async.StartChild
 
     do!
-      Api.sendMessage user.Id desc
+      Api.sendMessage user.Id text
       |> Api.api config
       |> Async.Ignore
 
