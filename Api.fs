@@ -80,9 +80,9 @@ let getUser ctx =
   | _ ->
     None
 
-let button text data =
+let button text command =
   { Text = text
-    CallbackData = Some data
+    CallbackData = Some command
     Url = None
     Pay = None
     LoginUrl = None
@@ -93,7 +93,7 @@ let button text data =
 let inlineMarkup =
   Option.map
     ( fun markup ->
-      { InlineKeyboard = List.map Seq.ofList markup } )
+        { InlineKeyboard = List.map Seq.ofList markup } )
 
 let markup =
   inlineMarkup
@@ -199,7 +199,7 @@ module Button =
 // Response
 let respond (ctx: UpdateContext) lastId state =
   // updateArrived must ensure user is present, so this call is safe
-  let user = getUser ctx |> Option.get
+  let user = Option.get <| getUser ctx
 
   let message, keyboard =
     match state with
@@ -224,47 +224,44 @@ let respond (ctx: UpdateContext) lastId state =
       Some [ [ button Button.cancel Command.cancel ] ]
 
   match ctx.Update with
-  | { Message = Some _ } ->
-    async
-      { let! _ =
-          removeLastMarkupMaybe ctx.Config lastId user.Id
-          |> Async.StartChild
+  | { Message = Some _ } -> async {
+    let! _ =
+      removeLastMarkupMaybe ctx.Config lastId user.Id
+      |> Async.StartChild
 
-        return!
-          sendMessage ctx.Config lastId user.Id message keyboard }
+    return!
+      sendMessage ctx.Config lastId user.Id message keyboard }
 
-  | { CallbackQuery = Some query } ->
-    async
-      { let! _ =
-          answerCallbackQuery ctx.Config query
-          |> Async.StartChild
+  | { CallbackQuery = Some query } -> async {
+    let! _ =
+      answerCallbackQuery ctx.Config query
+      |> Async.StartChild
 
-        let! _ =
-          editMessage ctx.Config lastId user.Id message keyboard
-          |> Async.StartChild
+    let! _ =
+      editMessage ctx.Config lastId user.Id message keyboard
+      |> Async.StartChild
 
-        return
-          keyboard
-          |> Option.bind (always lastId) }
+    return
+      keyboard
+      |> Option.bind (always lastId) }
 
   | _ ->
     Async.singleton lastId
 
 // Main function
 let updateArrived getConnection ctx =
+  let update (user: User) = async {
+    use connection = getConnection ()
+    let! creatorId, lastId, botState = State.get connection user.Id
+    let services = Services.get connection creatorId
+    let commands = getCommands ctx
+    let callback = Async.singleton
+    let! newBotState = update services commands callback botState
+    let! newLastId = respond ctx lastId newBotState
+    let state = State.create newLastId newBotState
+    do! State.update connection creatorId state }
+
   ctx
   |> getUser // Ensure user is present
-  |> Option.map
-      ( fun user ->
-          async
-            { use connection = getConnection ()
-              let! creatorId, lastId, botState = State.get connection user.Id
-              let services = Services.get connection creatorId
-              let commands = getCommands ctx
-              let callback = Async.singleton
-              let! newBotState = update services commands callback botState
-              let! newLastId = respond ctx lastId newBotState
-              let state = State.create newLastId newBotState
-              do! State.update connection creatorId state } )
-
+  |> Option.map update
   |> Option.defaultValue Async.doNothing

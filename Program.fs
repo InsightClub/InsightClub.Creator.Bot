@@ -52,9 +52,9 @@ let startBot
     printStarted ()
     startBot botConfig (Api.updateArrived getConnection) None
 
-  async
-    { do! setWebhook ()
-      do! startBot () }
+  async {
+    do! setWebhook ()
+    do! startBot () }
   |> Async.Ignore
 
 [<EntryPoint>]

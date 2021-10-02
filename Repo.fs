@@ -4,29 +4,28 @@ open Npgsql
 open Npgsql.FSharp
 open System
 
-let tryCreateCourse connection creatorId courseTitle =
-  async
-    { try
-        return!
-          connection
-          |> Sql.existingConnection
-          |> Sql.query
-            "INSERT INTO courses(creator_id, course_title)
-            VALUES (@creator_id, @course_title)
-            RETURNING course_id"
-          |> Sql.parameters
-            [ "creator_id", Sql.int creatorId
-              "course_title", Sql.string courseTitle ]
-          |> Sql.executeRowAsync (fun read -> read.int "course_id")
-          |> Async.AwaitTask
-          |> Async.map Some
+let tryCreateCourse connection creatorId courseTitle = async {
+  try
+    return!
+      connection
+      |> Sql.existingConnection
+      |> Sql.query
+        "INSERT INTO courses(creator_id, course_title)
+        VALUES (@creator_id, @course_title)
+        RETURNING course_id"
+      |> Sql.parameters
+        [ "creator_id", Sql.int creatorId
+          "course_title", Sql.string courseTitle ]
+      |> Sql.executeRowAsync (fun read -> read.int "course_id")
+      |> Async.AwaitTask
+      |> Async.map Some
 
-      with
-      | :? AggregateException as e when
-        (e.InnerException :? PostgresException) &&
-        (e.InnerException :?> PostgresException).SqlState
-          = PostgresErrorCodes.UniqueViolation ->
-        return None }
+  with
+  | :? AggregateException as e when
+    (e.InnerException :? PostgresException) &&
+    (e.InnerException :?> PostgresException).SqlState
+      = PostgresErrorCodes.UniqueViolation ->
+    return None }
 
 let getState initialState connection telegramId =
   connection
@@ -67,25 +66,24 @@ let updateState connection creatorId newState =
   |> Async.AwaitTask
   |> Async.Ignore
 
-let tryUpdateTitle connection courseId newTitle =
-  async
-    { try
-        return!
-          connection
-          |> Sql.existingConnection
-          |> Sql.query
-            "UPDATE courses
-            SET course_title = @course_title
-            WHERE course_id = @course_id"
-          |> Sql.parameters
-            [ "course_title", Sql.string newTitle
-              "course_id", Sql.int courseId ]
-          |> Sql.executeNonQueryAsync
-          |> Async.AwaitTask
-          |> Async.map(fun n -> n > 0)
-      with
-      | :? AggregateException as e when
-        (e.InnerException :? PostgresException) &&
-        (e.InnerException :?> PostgresException).SqlState
-          = PostgresErrorCodes.UniqueViolation ->
-        return false }
+let tryUpdateTitle connection courseId newTitle = async {
+  try
+    return!
+      connection
+      |> Sql.existingConnection
+      |> Sql.query
+        "UPDATE courses
+        SET course_title = @course_title
+        WHERE course_id = @course_id"
+      |> Sql.parameters
+        [ "course_title", Sql.string newTitle
+          "course_id", Sql.int courseId ]
+      |> Sql.executeNonQueryAsync
+      |> Async.AwaitTask
+      |> Async.map(fun n -> n > 0)
+  with
+  | :? AggregateException as e when
+    (e.InnerException :? PostgresException) &&
+    (e.InnerException :?> PostgresException).SqlState
+      = PostgresErrorCodes.UniqueViolation ->
+    return false }
