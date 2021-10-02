@@ -137,7 +137,7 @@ let answerCallbackQuery config (query: CallbackQuery) =
   |> Api.api config
   |> Async.Ignore
 
-// Text cleaning
+// Text utils
 let c s = Regex("\n[ ]+").Replace(s, "\n")
 let f = sprintf
 let r = Random()
@@ -148,6 +148,7 @@ let randomError () =
 
   emojees.[ r.Next(emojees.Length) ]
 
+// Messages
 let editMessage config lastId userId text keyboard =
   let id = Some <| Int userId
 
