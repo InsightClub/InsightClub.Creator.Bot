@@ -111,7 +111,8 @@ type BotCommands =
 type Service<'p, 'a> = ('p -> 'a) -> 'a
 
 type BotServices<'a> =
-  { tryCreateCourse: CourseTitle -> Service<CourseId option, 'a>
+  { callback: BotState * BotIntent -> 'a
+    tryCreateCourse: CourseTitle -> Service<CourseId option, 'a>
     tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'a>
     getCourseTitle: CourseId -> Service<CourseTitle, 'a>
     getCourseDesc: CourseId -> Service<CourseDesc, 'a>
@@ -123,8 +124,8 @@ type BotServices<'a> =
 /// Initial state
 let initial = Inactive
 
-let private updateInactive callback =
-  let callback x = callback (x, Nothing)
+let private updateInactive services =
+  let callback x = services.callback (x, Nothing)
   function
   | Some Inactive.Start ->
     Idle Idle.Started
@@ -134,8 +135,8 @@ let private updateInactive callback =
     Inactive
     |> callback
 
-let private updateIdle services callback =
-  let callback x = callback (x, Nothing)
+let private updateIdle services =
+  let callback x = services.callback (x, Nothing)
   function
   | Some Idle.Help ->
     Idle Idle.Helping
@@ -160,8 +161,8 @@ let private updateIdle services callback =
     Idle Idle.Error
     |> callback
 
-let private updateCreatingCourse services callback =
-  let callback x = callback (x, Nothing)
+let private updateCreatingCourse services =
+  let callback x = services.callback (x, Nothing)
   function
   | Some CreatingCourse.Cancel ->
     Idle Idle.CreateCanceled
@@ -182,8 +183,8 @@ let private updateCreatingCourse services callback =
     CreatingCourse CreatingCourse.Error
     |> callback
 
-let private updateEditingCourse services callback courseId =
-  let callback x = callback (x, Nothing)
+let private updateEditingCourse services courseId =
+  let callback x = services.callback (x, Nothing)
   function
   | Some EditingCourse.EditTitle ->
     ( fun courseTitle ->
@@ -204,8 +205,8 @@ let private updateEditingCourse services callback courseId =
     EditingCourse (courseId, EditingCourse.Error)
     |> callback
 
-let private updateEditingTitle services callback courseId courseTitle =
-  let callback x = callback (x, Nothing)
+let private updateEditingTitle services courseId courseTitle =
+  let callback x = services.callback (x, Nothing)
   function
   | Some EditingTitle.Cancel ->
     EditingCourse (courseId, EditingCourse.TitleCanceled)
@@ -226,7 +227,8 @@ let private updateEditingTitle services callback courseId courseTitle =
     EditingTitle (courseId, courseTitle, EditingTitle.Error)
     |> callback
 
-let private updateEditingDesc services callback courseId =
+let private updateEditingDesc services courseId =
+  let callback = services.callback
   function
   | Some EditingDesc.Show ->
     ( fun desc ->
@@ -252,7 +254,8 @@ let private updateEditingDesc services callback courseId =
     &> Nothing
     |> callback
 
-let private updateListingCourses services callback page count =
+let private updateListingCourses services page count =
+  let callback = services.callback
   function
   | Some (ListingCourses.Select courseId) ->
     EditingCourse (courseId, EditingCourse.Editing)
@@ -289,32 +292,32 @@ let private updateListingCourses services callback page count =
     &> Nothing
     |> callback
 
-let update services commands callback =
+let update services commands =
   function
   | Inactive ->
     commands.getInactive ()
-    |> updateInactive callback
+    |> updateInactive services
 
   | Idle _ ->
     commands.getIdle ()
-    |> updateIdle services callback
+    |> updateIdle services
 
   | CreatingCourse _ ->
     commands.getCreatingCourse ()
-    |> updateCreatingCourse services callback
+    |> updateCreatingCourse services
 
   | EditingCourse (courseId, _) ->
     commands.getEditingCourse ()
-    |> updateEditingCourse services callback courseId
+    |> updateEditingCourse services courseId
 
   | EditingTitle (courseId, courseTitle, _) ->
     commands.getEditingTitle ()
-    |> updateEditingTitle services callback courseId courseTitle
+    |> updateEditingTitle services courseId courseTitle
 
   | EditingDesc (courseId, _) ->
     commands.getEditingDesc ()
-    |> updateEditingDesc services callback courseId
+    |> updateEditingDesc services courseId
 
   | ListingCourses (page, count, _) ->
     commands.getListingCourses ()
-    |> updateListingCourses services callback page count
+    |> updateListingCourses services page count

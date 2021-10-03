@@ -45,7 +45,8 @@ let get connection creatorId =
 
     return! callback count }
 
-  { tryCreateCourse = tryCreateCourse
+  { callback = Async.singleton
+    tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
     getCourseTitle = getCourseTitle
     getCourseDesc = getCourseDesc

@@ -513,8 +513,7 @@ let onUpdate getConnection ctx =
     let! creatorId, lastId, state = State.get connection user.Id
     let services = Services.get connection creatorId
     let commands = getCommands ctx
-    let callback = Async.singleton
-    let! (state, intent) = update services commands callback state
+    let! (state, intent) = update services commands state
     let! lastId = handleIntent ctx lastId intent
     let! lastId = handleState ctx connection creatorId lastId state
     do! State.update connection creatorId lastId state }
