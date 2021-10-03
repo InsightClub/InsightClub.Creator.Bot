@@ -98,7 +98,7 @@ let getCourseTitle connection courseId =
     WHERE course_id = @course_id"
   |> Sql.parameters
     [ "course_id", Sql.int courseId ]
-  |> Sql.executeRowAsync ( fun read -> read.string "course_title" )
+  |> Sql.executeRowAsync (fun read -> read.string "course_title")
   |> Async.AwaitTask
 
 let getCourseDesc connection courseId =
@@ -126,3 +126,49 @@ let updateDesc connection courseId courseDesc =
   |> Sql.executeNonQueryAsync
   |> Async.AwaitTask
   |> Async.Ignore
+
+let checkAnyCourse connection creatorId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT EXISTS(
+      SELECT 1
+      FROM courses
+      WHERE creator_id = @creator_id
+    ) as any"
+  |> Sql.parameters
+    [ "creator_id", Sql.int creatorId ]
+  |> Sql.executeRowAsync (fun read -> read.bool "any")
+  |> Async.AwaitTask
+
+let getCoursesCount connection creatorId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT COUNT(*) as count
+    FROM courses
+    WHERE creator_id = @creator_id"
+  |> Sql.parameters
+    [ "creator_id", Sql.int creatorId ]
+  |> Sql.executeRowAsync (fun read -> read.int "count")
+  |> Async.AwaitTask
+
+let getCourses connection creatorId page count =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT course_id, course_title
+    FROM courses
+    WHERE creator_id = @creator_id
+    ORDER BY course_id
+    LIMIT @limit
+    OFFSET @offset"
+  |> Sql.parameters
+    [ "creator_id", Sql.int creatorId
+      "limit", Sql.int count
+      "offset", Sql.int (page * count) ]
+  |> Sql.executeAsync
+    ( fun read ->
+        read.int "course_id",
+        read.string "course_title" )
+  |> Async.AwaitTask

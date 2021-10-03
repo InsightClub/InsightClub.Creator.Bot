@@ -5,27 +5,46 @@ module InsightClub.Creator.Bot.Core
 type CourseId = int
 type CourseTitle = string
 type CourseDesc = string
+type Page = int
+type Count = int
 
 module Inactive =
   type Command = Start
 
 module Idle =
-  type Command = Help | CreateCourse
+  type Command =
+    | Help
+    | CreateCourse
+    | EditCourse of Count
+
   type Msg =
     | Started
     | Helping
-    | CourseCanceled
+    | NoCourses
+    | CreateCanceled
+    | EditCanceled
     | ExitedEditing
     | Error
 
 module CreatingCourse =
-  type Command = Cancel | CreateCourse of CourseTitle
-  type Msg = Started | TitleReserved | Error
+  type Command =
+    | Cancel
+    | CreateCourse of CourseTitle
+
+  type Msg =
+    | Started
+    | TitleReserved
+    | Error
 
 module EditingCourse =
-  type Command = EditTitle | EditDesc | Exit
+  type Command =
+    | EditTitle
+    | EditDesc
+    | Exit
+
   type Msg =
     | CourseCreated
+    | Editing
     | TitleCanceled
     | TitleSet
     | DescCanceled
@@ -33,12 +52,35 @@ module EditingCourse =
     | Error
 
 module EditingTitle =
-  type Command = Cancel | SetTitle of CourseTitle
-  type Msg = Started | TitleReserved | Error
+  type Command =
+    | Cancel
+    | SetTitle of CourseTitle
+
+  type Msg =
+    | Started
+    | TitleReserved
+    | Error
 
 module EditingDesc =
-  type Command = Show | Cancel | SetDesc of CourseDesc
-  type Msg = Started | Error
+  type Command =
+    | Show
+    | Cancel
+    | SetDesc of CourseDesc
+
+  type Msg =
+    | Started
+    | Error
+
+module ListingCourses =
+  type Command =
+    | Select of CourseId
+    | Prev
+    | Next
+    | Exit
+
+  type Msg =
+    | Started
+    | Error
 
 type BotState =
   | Inactive
@@ -47,10 +89,13 @@ type BotState =
   | EditingCourse of CourseId * EditingCourse.Msg
   | EditingTitle of CourseId * CourseTitle * EditingTitle.Msg
   | EditingDesc of CourseId * EditingDesc.Msg
+  | ListingCourses of Page * Count * ListingCourses.Msg
 
 type BotIntent =
   | Nothing
   | ShowDesc of CourseDesc
+  | InformNoPrev
+  | InformNoNext
 
 type CommandGetter<'c> = unit -> Option<'c>
 
@@ -60,7 +105,8 @@ type BotCommands =
     getCreatingCourse: CommandGetter<CreatingCourse.Command>
     getEditingCourse: CommandGetter<EditingCourse.Command>
     getEditingTitle: CommandGetter<EditingTitle.Command>
-    getEditingDesc: CommandGetter<EditingDesc.Command> }
+    getEditingDesc: CommandGetter<EditingDesc.Command>
+    getListingCourses: CommandGetter<ListingCourses.Command> }
 
 type Service<'p, 'a> = ('p -> 'a) -> 'a
 
@@ -69,14 +115,13 @@ type BotServices<'a> =
     tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'a>
     getCourseTitle: CourseId -> Service<CourseTitle, 'a>
     getCourseDesc: CourseId -> Service<CourseDesc, 'a>
-    updateDesc: CourseId -> CourseDesc -> Service<unit, 'a> }
+    updateDesc: CourseId -> CourseDesc -> Service<unit, 'a>
+    checkAnyCourse: Service<bool, 'a>
+    getCoursesCount: Service<Count, 'a> }
 
 // Values
 /// Initial state
 let initial = Inactive
-
-/// Pairs two values in one tuple
-let private (&>) x y = (x, y)
 
 let private updateInactive callback =
   let callback x = callback (x, Nothing)
@@ -89,7 +134,7 @@ let private updateInactive callback =
     Inactive
     |> callback
 
-let private updateIdle callback =
+let private updateIdle services callback =
   let callback x = callback (x, Nothing)
   function
   | Some Idle.Help ->
@@ -100,6 +145,17 @@ let private updateIdle callback =
     CreatingCourse CreatingCourse.Started
     |> callback
 
+  | Some (Idle.EditCourse count) ->
+    ( function
+      | true ->
+        ListingCourses (0, count, ListingCourses.Started)
+        |> callback
+
+      | false ->
+        Idle Idle.NoCourses
+        |> callback )
+    |> services.checkAnyCourse
+
   | None ->
     Idle Idle.Error
     |> callback
@@ -108,7 +164,7 @@ let private updateCreatingCourse services callback =
   let callback x = callback (x, Nothing)
   function
   | Some CreatingCourse.Cancel ->
-    Idle Idle.CourseCanceled
+    Idle Idle.CreateCanceled
     |> callback
 
   | Some (CreatingCourse.CreateCourse title) ->
@@ -196,6 +252,43 @@ let private updateEditingDesc services callback courseId =
     &> Nothing
     |> callback
 
+let private updateListingCourses services callback page count =
+  function
+  | Some (ListingCourses.Select courseId) ->
+    EditingCourse (courseId, EditingCourse.Editing)
+    &> Nothing
+    |> callback
+
+  | Some ListingCourses.Prev ->
+      if page = 0 then
+        ListingCourses (page, count, ListingCourses.Started)
+        &> InformNoPrev
+      else
+        ListingCourses (page - 1, count, ListingCourses.Started)
+        &> Nothing
+    |> callback
+
+  | Some ListingCourses.Next ->
+    ( fun coursesCount ->
+        if (page + 1) * count >= coursesCount then
+          ListingCourses (page, count, ListingCourses.Started)
+          &> InformNoNext
+        else
+          ListingCourses (page + 1, count, ListingCourses.Started)
+          &> Nothing
+      |> callback )
+    |> services.getCoursesCount
+
+  | Some ListingCourses.Exit ->
+    Idle Idle.EditCanceled
+    &> Nothing
+    |> callback
+
+  | None ->
+    ListingCourses (page, count, ListingCourses.Error)
+    &> Nothing
+    |> callback
+
 let update services commands callback =
   function
   | Inactive ->
@@ -204,7 +297,7 @@ let update services commands callback =
 
   | Idle _ ->
     commands.getIdle ()
-    |> updateIdle callback
+    |> updateIdle services callback
 
   | CreatingCourse _ ->
     commands.getCreatingCourse ()
@@ -221,3 +314,7 @@ let update services commands callback =
   | EditingDesc (courseId, _) ->
     commands.getEditingDesc ()
     |> updateEditingDesc services callback courseId
+
+  | ListingCourses (page, count, _) ->
+    commands.getListingCourses ()
+    |> updateListingCourses services callback page count

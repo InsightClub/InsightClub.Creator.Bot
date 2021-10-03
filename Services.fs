@@ -33,8 +33,22 @@ let get connection creatorId =
 
     return! callback () }
 
+  let checkAnyCourse callback = async {
+    let! any =
+      Repo.checkAnyCourse connection creatorId
+
+    return! callback any }
+
+  let getCoursesCount callback = async {
+    let! count =
+      Repo.getCoursesCount connection creatorId
+
+    return! callback count }
+
   { tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
     getCourseTitle = getCourseTitle
     getCourseDesc = getCourseDesc
-    updateDesc = updateDesc }
+    updateDesc = updateDesc
+    checkAnyCourse = checkAnyCourse
+    getCoursesCount = getCoursesCount }

@@ -19,6 +19,9 @@ module Command =
   let title = "/title"
   let desc = "/desc"
   let show = "/show"
+  let edit = "/edit"
+  let prev = "/prev"
+  let next = "/next"
 
 let getCommands ctx =
   let getInactive () =
@@ -34,6 +37,9 @@ let getCommands ctx =
 
     | Some { Text = Some (Command Command.new') } ->
       Some Idle.CreateCourse
+
+    | Some { Text = Some (Command Command.edit) } ->
+      Some (Idle.EditCourse 5)
 
     | _ ->
       None
@@ -88,12 +94,30 @@ let getCommands ctx =
     | _ ->
       None
 
+  let getListingCourses () =
+    match ctx.Update.CallbackQuery with
+    | Some { Data = Some (CommandParam Command.edit courseId) } ->
+      Some (ListingCourses.Select courseId)
+
+    | Some { Data = Some (Command Command.prev) } ->
+      Some ListingCourses.Prev
+
+    | Some { Data = Some (Command Command.next) } ->
+      Some ListingCourses.Next
+
+    | Some { Data = Some (Command Command.exit) } ->
+      Some ListingCourses.Exit
+
+    | _ ->
+      None
+
   { getInactive = getInactive
     getIdle = getIdle
     getCreatingCourse = getCreatingCourse
     getEditingCourse = getEditingCourse
     getEditingTitle = getEditingTitle
-    getEditingDesc = getEditingDesc }
+    getEditingDesc = getEditingDesc
+    getListingCourses = getListingCourses }
 
 // Api helpers
 let getUser ctx =
@@ -151,24 +175,12 @@ let sendMessage config lastId userId text keyboard  =
   else
     Async.singleton lastId
 
-let answerCallbackQuery config (query: CallbackQuery) =
+let answerCallbackQuery config (query: CallbackQuery) text =
   Api.answerCallbackQueryBase
-    (Some query.Id) (Some String.Empty) None None None
+    (Some query.Id) text None None None
   |> Api.api config
   |> Async.Ignore
 
-// Text utils
-let c s = Regex("\n[ ]+").Replace(s, "\n")
-let f = sprintf
-let r = Random()
-let randomError () =
-  let emojees =
-    [| "🤷‍♂️"; "😵‍💫"; "🙄"; "🤪"; "🙀"
-       "😭"; "😣"; "🥺"; "😑"; "💩" |]
-
-  emojees.[ r.Next(emojees.Length) ]
-
-// Messages
 let editMessage config lastId userId text keyboard =
   let id = Some <| Int userId
 
@@ -180,7 +192,18 @@ let editMessage config lastId userId text keyboard =
   else
     Async.doNothing
 
-let idleMessage (user: User) =
+// Text utils
+let c s = Regex("\n[ ]+").Replace(s, "\n")
+let random = Random()
+let randomEmoji () =
+  let emojis =
+    [| "🤷‍♂️"; "😵‍💫"; "🙄"; "🤪"; "🙀"
+       "😭"; "😣"; "🥺"; "😑"; "💩" |]
+
+  emojis.[ random.Next(emojis.Length) ]
+
+// Messages
+let idleMsg (user: User) =
   function
   | Idle.Started ->
     let lastName =
@@ -188,41 +211,48 @@ let idleMessage (user: User) =
       |> Option.map ((+) " ")
       |> Option.defaultValue ""
 
-    f "Добро пожаловать в InsightClub.Creator.Bot, %s%s! ✨ \
-      С помощью этого бота Вы можете конструировать свои курсы! 😎
+    c$"Добро пожаловать в InsightClub.Creator.Bot, {user.FirstName} \
+      {lastName}! ✨ С помощью этого бота Вы можете конструировать свои \
+      курсы! 😎
 
-      Отправьте /help для получения помощи. 👀" user.FirstName lastName
-    |> c
+      Отправьте /help для получения помощи 👀"
 
   | Idle.Helping ->
-    c " Добро пожаловать в справку InsightClub.Creator.Bot! 🤖
+    c$"Добро пожаловать в справку InsightClub.Creator.Bot! 🤖
 
-      Этот бот имеет несколько режимов. 🧞‍♂️ На данный момент он находится \
+      Этот бот имеет несколько режимов 🧞‍♂️ На данный момент он находится \
       в режиме ожидания. Все остальные режимы имеют вспомогательные \
       клавиатуры, которые помогут Вам легко разобраться в функционале.
 
-      /new - Создать новый курс ⚡️
-      /help - Получить помощь (Вы сейчас здесь) 👀
+      {Command.new'} - Создать новый курс ⚡️
+      {Command.edit} - Редактировать существующий курс 📝
+      {Command.help} - Получить помощь (Вы сейчас здесь) 👀
 
-      Учитывайте, что команда /help работает только в режиме ожидания. \
+      Учитывайте, что команда {Command.help} работает только в режиме ожидания. \
       В остальных режимах она не распознаётся, ибо их интерфейс поможет \
-      Вам легко разобраться. 🔥"
+      Вам легко разобраться 🔥"
 
-  | Idle.CourseCanceled ->
-    "Создание курса отменено. 👌"
+  | Idle.NoCourses ->
+    c$"У Вас пока нет курсов {randomEmoji ()}
+      Создайте новый, отправив команду {Command.new'} 🤹‍♂️"
+
+  | Idle.CreateCanceled ->
+    "Создание курса отменено 👌"
+
+  | Idle.EditCanceled ->
+    "Редактирование отменено 👌"
 
   | Idle.ExitedEditing ->
-    "Как пожелаете. 🧞‍♂️ Редактирование завершено."
+    "Как пожелаете 🧞‍♂️ Редактирование завершено."
 
   | Idle.Error ->
-    f "Неизвестная команда. %s
-      Отправьте /help для получения помощи. 👀" (randomError())
-    |> c
+    c$"Неизвестная команда {randomEmoji ()}
+      Отправьте {Command.help} для получения помощи 👀"
 
-let creatingCourseMessage =
+let creatingCourseMsg =
   function
   | CreatingCourse.Started ->
-    c "Режим создания нового курса. 🧚‍♂️
+    c "Режим создания нового курса 🧚‍♂️
       Как Вы хотели бы назвать новый курс? 📝"
 
   | CreatingCourse.TitleReserved ->
@@ -230,92 +260,112 @@ let creatingCourseMessage =
       Пожалуйста, выберите другое."
 
   | CreatingCourse.Error ->
-    f "Неизвестная команда. %s
+    c$"Неизвестная команда {randomEmoji ()}
 
       Режим создания нового курса.
-      Как Вы хотели бы назвать новый курс? 📝" (randomError())
-    |> c
+      Как Вы хотели бы назвать новый курс? 📝"
 
-let editingCourseMessage =
+let editingCourseMsg =
   function
   | EditingCourse.CourseCreated ->
     c "Курс создан! ✅
 
-      Режим редактирования курса. ✏️
+      Режим редактирования курса ✏️
+      Для просмотра данных о курсе выберите соответствующий раздел. \
+      Помимо просмотра, разделы позволяют также и \
+      редактировать соответствующие данные курса."
+
+  | EditingCourse.Editing ->
+    c "Режим редактирования курса ✏️
       Для просмотра данных о курсе выберите соответствующий раздел. \
       Помимо просмотра, разделы позволяют также и \
       редактировать соответствующие данные курса."
 
   | EditingCourse.TitleCanceled ->
-    c "Редактирование названия отменено. 👌
+    c "Редактирование названия отменено 👌
 
-      Режим редактирования курса. ✏️
+      Режим редактирования курса ✏️
       Выберите что Вы хотели бы сделать дальше."
 
   | EditingCourse.TitleSet ->
     c "Название курса обновлено! ✅
 
-      Режим редактирования курса. ✏️
+      Режим редактирования курса ✏️
       Выберите что Вы хотели бы сделать дальше."
 
   | EditingCourse.DescCanceled ->
-    c "Редактирование описания отменено. 👌
+    c "Редактирование описания отменено 👌
 
-      Режим редактирования курса. ✏️
+      Режим редактирования курса ✏️
       Выберите что Вы хотели бы сделать дальше."
 
   | EditingCourse.DescSet ->
     c "Описание курса обновлено! ✅
 
-      Режим редактирования курса. ✏️
+      Режим редактирования курса ✏️
       Выберите что Вы хотели бы сделать дальше."
 
   | EditingCourse.Error ->
-    f "Неизвестная команда. %s
+    c$"Неизвестная команда {randomEmoji ()}
 
-      Режим редактирования курса. ✏️
-      Выберите что Вы хотели бы сделать дальше." (randomError())
-    |> c
+      Режим редактирования курса ✏️
+      Выберите что Вы хотели бы сделать дальше."
 
-let editingTitleMessage title =
+let editingTitleMsg title =
   function
   | EditingTitle.Started ->
-    f "Редактируем название курса. 🥸
+    c$"Редактируем название курса 🥸
 
-      Текущее название курса: %s
-      Отправьте новое, чтоб изменить." title
-    |> c
+      Текущее название курса: {title}
+      Отправьте новое, чтоб изменить."
 
   | EditingTitle.TitleReserved ->
-    f "Курс с таким названием уже существует. 🤷‍♂️
+    c$"Курс с таким названием уже существует 🤷‍♂️
 
-      Текущее название курса: %s
-      Отправьте новое, чтоб изменить." title
-    |> c
+      Текущее название курса: {title}
+      Отправьте новое, чтоб изменить."
 
   | EditingTitle.Error ->
-    f "Неизвестная команда. %s
+    c$"Неизвестная команда {randomEmoji ()}
 
-      Текущее название курса: %s
-      Отправьте новое, чтоб изменить." (randomError()) title
-    |> c
+      Текущее название курса: {title}
+      Отправьте новое, чтоб изменить."
 
-let editingDescMessage =
+let editingDescMsg =
   function
   | EditingDesc.Started ->
-    c "Редактируем описание курса. 👽
+    c "Редактируем описание курса 👽
 
       Отправьте текст, чтоб изменить описание.
       Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
       будут видеть в первую очередь, не считая названия курса."
 
   | EditingDesc.Error ->
-    f "Неизвестная команда. %s
+    c$"Неизвестная команда {randomEmoji ()}
 
       Отправьте текст, чтоб изменить описание курса.
       Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
-      будут видеть в первую очередь, не считая названия курса." (randomError())
-    |> c
+      будут видеть в первую очередь, не считая названия курса."
+
+let listingCoursesMsg page count courseCount msg =
+  let m s =
+    match msg with
+    | ListingCourses.Started ->
+      s
+
+    | ListingCourses.Error ->
+      c$"Неизвестная команда. {randomEmoji ()}
+
+        {s}"
+
+  let min = page * count + 1
+  let max = page * count + courseCount
+
+  if min = max
+  then $"Курс № {min}"
+  else $"Курсы с № {min} по № {max}"
+  |> m
+  |> c
 
 module Button =
   let cancel = "Отмена ❌"
@@ -323,52 +373,72 @@ module Button =
   let title = "Название ✏️"
   let desc = "Описание 🖋"
   let show = "Показать 👁"
+  let prev = "Назад ⬅️"
+  let next = "Вперёд ➡️"
 
 // Response for state
-let handleState (ctx: UpdateContext) lastId state =
+let handleState (ctx: UpdateContext) connection creatorId lastId state = async {
   // onUpdate must ensure user is available, so this call is safe
   let user = Option.get <| getUser ctx
 
-  let message, keyboard =
+  let! message, keyboard = async {
     match state with
     | Inactive ->
-      String.Empty, None
+      return String.Empty, None
 
     | Idle msg ->
-      idleMessage user msg, None
+      return idleMsg user msg, None
 
     | CreatingCourse msg ->
-      creatingCourseMessage msg,
-      Some [ [ button Button.cancel Command.cancel ] ]
+      return
+        creatingCourseMsg msg,
+        Some [ [ button Button.cancel Command.cancel ] ]
 
     | EditingCourse (_, msg) ->
-      editingCourseMessage msg,
-      Some
-        [ [ button Button.title Command.title
-            button Button.desc Command.desc ]
-          [ button Button.exit Command.exit ] ]
+      return
+        editingCourseMsg msg,
+        Some
+          [ [ button Button.title Command.title
+              button Button.desc Command.desc ]
+            [ button Button.exit Command.exit ] ]
 
     | EditingTitle (_, title, msg) ->
-      editingTitleMessage title msg,
-      Some [ [ button Button.cancel Command.cancel ] ]
+      return
+        editingTitleMsg title msg,
+        Some [ [ button Button.cancel Command.cancel ] ]
 
     | EditingDesc (_, msg) ->
-      editingDescMessage msg,
-      Some [ [ button Button.show Command.show
-               button Button.cancel Command.cancel ] ]
+      return
+        editingDescMsg msg,
+        Some [ [ button Button.show Command.show
+                 button Button.cancel Command.cancel ] ]
+
+    | ListingCourses (page, count, msg) ->
+      let! courses = Repo.getCourses connection creatorId page count
+
+      return
+        listingCoursesMsg page count (List.length courses) msg,
+        ( courses
+          |> List.map
+            ( fun (id, title) ->
+                [ button title $"{Command.edit} {id}" ] ) )
+        @ [ [ button Button.prev Command.prev
+              button Button.next Command.next ]
+            [ button Button.exit Command.exit ] ]
+        |> Some }
 
   match ctx.Update with
-  | { Message = Some _ } -> async {
+  | { Message = Some _ } ->
     let! _ =
       removeLastMarkupMaybe ctx.Config lastId user.Id
       |> Async.StartChild
 
     return!
-      sendMessage ctx.Config lastId user.Id message keyboard }
+      sendMessage ctx.Config lastId user.Id message keyboard
 
-  | { CallbackQuery = Some query } -> async {
+  | { CallbackQuery = Some query } ->
     let! _ =
-      answerCallbackQuery ctx.Config query
+      answerCallbackQuery ctx.Config query None
       |> Async.StartChild
 
     if lastId.IsSome then
@@ -380,10 +450,10 @@ let handleState (ctx: UpdateContext) lastId state =
         |> Option.bind (always lastId)
     else
       return!
-        sendMessage ctx.Config lastId user.Id message keyboard }
+        sendMessage ctx.Config lastId user.Id message keyboard
 
   | _ ->
-    Async.singleton lastId
+    return lastId }
 
 // Response for intent
 let handleIntent (ctx: UpdateContext) lastId =
@@ -400,12 +470,41 @@ let handleIntent (ctx: UpdateContext) lastId =
       removeLastMarkupMaybe config lastId user.Id
       |> Async.StartChild
 
+    let text =
+      if String.IsNullOrEmpty text
+      then $"У Вашего курса пока нет описания {randomEmoji ()}"
+      else text
+
     do!
       Api.sendMessage user.Id text
       |> Api.api config
       |> Async.Ignore
 
     return None }
+
+  | InformNoPrev -> async {
+    match ctx.Update.CallbackQuery with
+    | Some query ->
+      let! _ =
+        answerCallbackQuery ctx.Config query (Some "Вы дошли до минимума")
+        |> Async.StartChild
+
+      return lastId
+
+    | None ->
+      return lastId }
+
+  | InformNoNext -> async {
+    match ctx.Update.CallbackQuery with
+    | Some query ->
+      let! _ =
+        answerCallbackQuery ctx.Config query (Some "Вы дошли до максимума")
+        |> Async.StartChild
+
+      return lastId
+
+    | None ->
+      return lastId }
 
 // Main function
 let onUpdate getConnection ctx =
@@ -417,7 +516,7 @@ let onUpdate getConnection ctx =
     let callback = Async.singleton
     let! (state, intent) = update services commands callback state
     let! lastId = handleIntent ctx lastId intent
-    let! lastId = handleState ctx lastId state
+    let! lastId = handleState ctx connection creatorId lastId state
     do! State.update connection creatorId lastId state }
 
   ctx
