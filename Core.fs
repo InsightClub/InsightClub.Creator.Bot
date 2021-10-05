@@ -91,7 +91,7 @@ type BotState =
   | EditingDesc of CourseId * EditingDesc.Msg
   | ListingCourses of Page * Count * ListingCourses.Msg
 
-type BotIntent =
+type BotEffect =
   | Nothing
   | ShowDesc of CourseDesc
   | InformNoPrev
@@ -111,7 +111,7 @@ type BotCommands =
 type Service<'p, 'a> = ('p -> 'a) -> 'a
 
 type BotServices<'a> =
-  { callback: BotState * BotIntent -> 'a
+  { callback: BotState * BotEffect -> 'a
     tryCreateCourse: CourseTitle -> Service<CourseId option, 'a>
     tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'a>
     getCourseTitle: CourseId -> Service<CourseTitle, 'a>

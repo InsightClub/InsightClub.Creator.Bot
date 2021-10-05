@@ -455,8 +455,8 @@ let handleState (ctx: UpdateContext) connection creatorId lastId state = async {
   | _ ->
     return lastId }
 
-// Response for intent
-let handleIntent (ctx: UpdateContext) lastId =
+// Response for effect
+let handleEffect (ctx: UpdateContext) lastId =
   // onUpdate must ensure user is available, so this call is safe
   let user = Option.get <| getUser ctx
   let config = ctx.Config
@@ -513,8 +513,8 @@ let onUpdate getConnection ctx =
     let! creatorId, lastId, state = State.get connection user.Id
     let services = Services.get connection creatorId
     let commands = getCommands ctx
-    let! (state, intent) = update services commands state
-    let! lastId = handleIntent ctx lastId intent
+    let! (state, effect) = update services commands state
+    let! lastId = handleEffect ctx lastId effect
     let! lastId = handleState ctx connection creatorId lastId state
     do! State.update connection creatorId lastId state }
 
