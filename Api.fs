@@ -165,7 +165,7 @@ let onUpdate getConnection ctx =
     let! creatorId, lastId, state = State.get connection user.Id
     let services = Services.get connection creatorId
     let commands = Commands.get ctx
-    let! (state, effect) = update services commands state
+    let! state, effect = update services commands state
     let! lastId = handleEffect ctx lastId effect
     let! lastId = handleState ctx connection creatorId lastId state
     do! State.update connection creatorId lastId state }
