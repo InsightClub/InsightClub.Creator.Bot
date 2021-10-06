@@ -1,4 +1,4 @@
-module InsightClub.Creator.Bot.Command
+module InsightClub.Creator.Bot.Commands
 
 open Core
 open Funogram.Telegram.Bot

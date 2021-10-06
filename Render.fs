@@ -36,17 +36,17 @@ let private idleMsg (user: User) =
       в режиме ожидания. Все остальные режимы имеют вспомогательные \
       клавиатуры, которые помогут Вам легко разобраться в функционале.
 
-      {Command.new'} - Создать новый курс ⚡️
-      {Command.edit} - Редактировать существующий курс 📝
-      {Command.help} - Получить помощь (Вы сейчас здесь) 👀
+      {Commands.new'} - Создать новый курс ⚡️
+      {Commands.edit} - Редактировать существующий курс 📝
+      {Commands.help} - Получить помощь (Вы сейчас здесь) 👀
 
-      Учитывайте, что команда {Command.help} работает только в режиме ожидания. \
+      Учитывайте, что команда {Commands.help} работает только в режиме ожидания. \
       В остальных режимах она не распознаётся, ибо их интерфейс поможет \
       Вам легко разобраться 🔥"
 
   | Idle.NoCourses ->
     c$"У Вас пока нет курсов {randomEmoji ()}
-      Создайте новый, отправив команду {Command.new'} 🤹‍♂️"
+      Создайте новый, отправив команду {Commands.new'} 🤹‍♂️"
 
   | Idle.CreateCanceled ->
     "Создание курса отменено 👌"
@@ -59,7 +59,7 @@ let private idleMsg (user: User) =
 
   | Idle.Error ->
     c$"Неизвестная команда {randomEmoji ()}
-      Отправьте {Command.help} для получения помощи 👀"
+      Отправьте {Commands.help} для получения помощи 👀"
 
 let private creatingCourseMsg =
   function
@@ -209,27 +209,27 @@ let state getCourses user state = async {
   | CreatingCourse msg ->
     return
       creatingCourseMsg msg,
-      Some [ [ button Button.cancel Command.cancel ] ]
+      Some [ [ button Button.cancel Commands.cancel ] ]
 
   | EditingCourse (_, msg) ->
     return
       editingCourseMsg msg,
       Some
-        [ [ button Button.title Command.title
-            button Button.desc Command.desc ]
-          [ button Button.exit Command.exit ] ]
+        [ [ button Button.title Commands.title
+            button Button.desc Commands.desc ]
+          [ button Button.exit Commands.exit ] ]
 
   | EditingTitle (_, title, msg) ->
     return
       editingTitleMsg title msg,
-      Some [ [ button Button.cancel Command.cancel ] ]
+      Some [ [ button Button.cancel Commands.cancel ] ]
 
   | EditingDesc (_, msg) ->
     return
       editingDescMsg msg,
       Some
-        [ [ button Button.show Command.show
-            button Button.cancel Command.cancel ] ]
+        [ [ button Button.show Commands.show
+            button Button.cancel Commands.cancel ] ]
 
   | ListingCourses (page, count, msg) ->
     let! courses = getCourses page count
@@ -238,9 +238,9 @@ let state getCourses user state = async {
       listingCoursesMsg page count (List.length courses) msg,
       Some
         [ for (id, title) in courses do
-            yield [ button title $"{Command.edit} {id}" ]
+            yield [ button title $"{Commands.edit} {id}" ]
 
-          yield [ button Button.prev Command.prev
-                  button Button.next Command.next ]
+          yield [ button Button.prev Commands.prev
+                  button Button.next Commands.next ]
 
-          yield [ button Button.exit Command.exit ] ] }
+          yield [ button Button.exit Commands.exit ] ] }
