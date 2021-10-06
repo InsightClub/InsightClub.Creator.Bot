@@ -147,15 +147,13 @@ let private updateIdle services =
     |> callback
 
   | Some (Idle.EditCourse count) ->
-    ( function
-      | true ->
-        ListingCourses (0, count, ListingCourses.Started)
-        |> callback
-
-      | false ->
-        Idle Idle.NoCourses
-        |> callback )
-    |> services.checkAnyCourse
+    services.checkAnyCourse <|
+      fun any ->
+        callback <|
+          if any then
+            ListingCourses (0, count, ListingCourses.Started)
+          else
+            Idle Idle.NoCourses
 
   | None ->
     Idle Idle.Error
@@ -169,15 +167,15 @@ let private updateCreatingCourse services =
     |> callback
 
   | Some (CreatingCourse.CreateCourse title) ->
-    ( function
-      | Some courseId ->
-        EditingCourse (courseId, EditingCourse.CourseCreated)
-        |> callback
+    services.tryCreateCourse title <|
+      fun courseId ->
+        callback <|
+          match courseId with
+          | Some courseId ->
+            EditingCourse (courseId, EditingCourse.CourseCreated)
 
-      | None ->
-        CreatingCourse CreatingCourse.TitleReserved
-        |> callback )
-    |> services.tryCreateCourse title
+          | None ->
+            CreatingCourse CreatingCourse.TitleReserved
 
   | None ->
     CreatingCourse CreatingCourse.Error
@@ -187,11 +185,10 @@ let private updateEditingCourse services courseId =
   let callback x = services.callback (x, Nothing)
   function
   | Some EditingCourse.EditTitle ->
-    ( fun courseTitle ->
-      (courseId, courseTitle, EditingTitle.Started)
-      |> EditingTitle
-      |> callback )
-    |> services.getCourseTitle courseId
+    services.getCourseTitle courseId <|
+      fun courseTitle ->
+        EditingTitle (courseId, courseTitle, EditingTitle.Started)
+        |> callback
 
   | Some EditingCourse.EditDesc ->
     EditingDesc (courseId, EditingDesc.Started)
@@ -213,15 +210,16 @@ let private updateEditingTitle services courseId courseTitle =
     |> callback
 
   | Some (EditingTitle.SetTitle title) ->
-    ( function
-      | true ->
-        EditingCourse (courseId, EditingCourse.TitleSet)
-        |> callback
-
-      | false ->
-        EditingTitle (courseId, courseTitle, EditingTitle.TitleReserved)
-        |> callback )
-    |> services.tryUpdateTitle courseId title
+    services.tryUpdateTitle courseId title <|
+      fun isOk ->
+        callback <|
+          if isOk then
+            EditingCourse (courseId, EditingCourse.TitleSet)
+          else
+            EditingTitle
+              ( courseId,
+                courseTitle,
+                EditingTitle.TitleReserved )
 
   | None ->
     EditingTitle (courseId, courseTitle, EditingTitle.Error)
@@ -231,11 +229,11 @@ let private updateEditingDesc services courseId =
   let callback = services.callback
   function
   | Some EditingDesc.Show ->
-    ( fun desc ->
+    services.getCourseDesc courseId <|
+      fun desc ->
         EditingDesc (courseId, EditingDesc.Started)
         &> ShowDesc desc
-        |> callback )
-    |> services.getCourseDesc courseId
+        |> callback
 
   | Some EditingDesc.Cancel ->
     EditingCourse (courseId, EditingCourse.DescCanceled)
@@ -243,11 +241,11 @@ let private updateEditingDesc services courseId =
     |> callback
 
   | Some (EditingDesc.SetDesc desc) ->
-    ( fun () ->
+    services.updateDesc courseId desc <|
+      fun () ->
         EditingCourse (courseId, EditingCourse.DescSet)
         &> Nothing
-        |> callback )
-    |> services.updateDesc courseId desc
+        |> callback
 
   | None ->
     EditingDesc (courseId, EditingDesc.Error)
@@ -263,24 +261,24 @@ let private updateListingCourses services page count =
     |> callback
 
   | Some ListingCourses.Prev ->
+    callback <|
       if page = 0 then
         ListingCourses (page, count, ListingCourses.Started)
         &> InformNoPrev
       else
         ListingCourses (page - 1, count, ListingCourses.Started)
         &> Nothing
-    |> callback
 
   | Some ListingCourses.Next ->
-    ( fun coursesCount ->
-        if (page + 1) * count >= coursesCount then
-          ListingCourses (page, count, ListingCourses.Started)
-          &> InformNoNext
-        else
-          ListingCourses (page + 1, count, ListingCourses.Started)
-          &> Nothing
-      |> callback )
-    |> services.getCoursesCount
+    services.getCoursesCount <|
+      fun coursesCount ->
+        callback <|
+          if (page + 1) * count >= coursesCount then
+            ListingCourses (page, count, ListingCourses.Started)
+            &> InformNoNext
+          else
+            ListingCourses (page + 1, count, ListingCourses.Started)
+            &> Nothing
 
   | Some ListingCourses.Exit ->
     Idle Idle.EditCanceled
