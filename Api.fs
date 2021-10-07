@@ -58,7 +58,7 @@ let editMessage config lastId userId text keyboard = async {
   else
     () }
 
-let handleMessage config userId message keyboard lastId = async {
+let answerMessage config userId message keyboard lastId = async {
   let! _ =
     removeLastMarkupMaybe config userId lastId
     |> Async.StartChild
@@ -66,7 +66,7 @@ let handleMessage config userId message keyboard lastId = async {
   return!
     sendMessage config userId message keyboard lastId }
 
-let handleQuery config userId query message keyboard lastId = async {
+let answerQuery config userId message keyboard lastId query = async {
   let! _ =
     answerCallbackQuery config query None
     |> Async.StartChild
@@ -82,7 +82,7 @@ let handleQuery config userId query message keyboard lastId = async {
     return!
       sendMessage config userId message keyboard lastId }
 
-let handleEffect config userId query lastId effect = async {
+let handleEffect config userId lastId effect query = async {
   match effect with
   | Core.Nothing ->
     return lastId
@@ -118,40 +118,45 @@ let handleEffect config userId query lastId effect = async {
 
     return lastId }
 
-// Main function
+let getData = function
+| { Update.Message = Some ({ From = Some user } as message) } ->
+  Some (user, Choice1Of2 message)
+
+| { CallbackQuery = Some ({ From = user; Message = Some _ } as query) } ->
+  Some (user, Choice2Of2 query)
+
+| _ ->
+  None
+
+let choice onMessage onQuery = function
+| Choice1Of2 message -> onMessage message
+| Choice2Of2 query   -> onQuery query
+
 let onUpdate getConnection ctx = async {
-  let config = ctx.Config
-  match ctx.Update with
-  | { Message = Some ({ From = Some user } as message) } ->
+  match getData ctx.Update with
+  | Some (user, req) ->
+    let config = ctx.Config
     let userId = user.Id
-    let commands = Commands.onMessage message
+    let commands = choice Commands.onMessage Commands.onQuery req
 
     use connection = getConnection ()
     let! creatorId, lastId, state = State.get connection userId
     let services = Services.get connection creatorId
-    let getCourses = Repo.getCourses connection creatorId
-
-    let! state, _ = Core.update services commands state
-
-    let! message, keyboard = Render.state getCourses user state
-    let! lastId = handleMessage config userId message keyboard lastId
-
-    do! State.update connection creatorId lastId state
-
-  | { CallbackQuery = Some ({ From = user; Message = Some _ } as query) } ->
-    let userId = user.Id
-    let commands = Commands.onQuery query
-
-    use connection = getConnection ()
-    let! creatorId, lastId, state = State.get connection userId
-    let services = Services.get connection creatorId
-    let getCourses = Repo.getCourses connection creatorId
 
     let! state, effect = Core.update services commands state
 
+    let messageEffect _ = Async.singleton lastId
+    let queryEffect = handleEffect config userId lastId effect
+
+    let! lastId = choice messageEffect queryEffect req
+
+    let getCourses = Repo.getCourses connection creatorId
     let! message, keyboard = Render.state getCourses user state
-    let! lastId = handleEffect config userId query lastId effect
-    let! lastId = handleQuery config userId query message keyboard lastId
+
+    let answerMessage _ = answerMessage config userId message keyboard lastId
+    let answerQuery = answerQuery config userId message keyboard lastId
+
+    let! lastId = choice answerMessage answerQuery req
 
     do! State.update connection creatorId lastId state
 
