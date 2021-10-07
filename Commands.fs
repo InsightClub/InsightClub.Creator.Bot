@@ -1,7 +1,7 @@
 module InsightClub.Creator.Bot.Commands
 
 open Core
-open Funogram.Telegram.Bot
+open System
 open Funogram.Telegram.Types
 
 
@@ -17,93 +17,103 @@ let edit = "/edit"
 let prev = "/prev"
 let next = "/next"
 
-let get ctx =
+let private (|Command|_|) command = function
+  | { Message.Text = Some text }
+    when text = command -> Some ()
+  | _                   -> None
+
+let private (|Text|_|) = function
+  | { Message.Text = Some text } -> Some text
+  | _                            -> None
+
+let private (|CommandQ|_|) command = function
+| { CallbackQuery.Data = Some text }
+  when text = command -> Some ()
+| _                   -> None
+
+let private (|ParamQ|_|) command = function
+  | { CallbackQuery.Data = Some text }
+    when text.StartsWith(command + " ") ->
+    let start = String.length command + 1
+    tryParseWith Int32.TryParse text.[ start .. ]
+
+  | _ -> None
+
+let onMessage message =
   let getInactive () =
-    ctx.Update.Message
-    |> Option.bind (fun m -> m.Text)
-    |> Option.filter ((=) start)
-    |> Option.map (always Inactive.Start)
+    match message with
+    | Command start -> Some Inactive.Start
+    | _             -> None
 
   let getIdle () =
-    match ctx.Update.Message with
-    | Some { Text = Some (Command help) } ->
-      Some Idle.Help
-
-    | Some { Text = Some (Command new') } ->
-      Some Idle.CreateCourse
-
-    | Some { Text = Some (Command edit) } ->
-      Some (Idle.EditCourse 5)
-
-    | _ ->
-      None
+    match message with
+    | Command help -> Some Idle.Help
+    | Command new' -> Some Idle.CreateCourse
+    | Command edit -> Some <| Idle.EditCourse 5
+    | _            -> None
 
   let getCreatingCourse () =
-    match ctx.Update with
-    | { CallbackQuery = Some { Data = Some (Command cancel) } } ->
-      Some CreatingCourse.Cancel
+    match message with
+    | Text title -> Some <| CreatingCourse.CreateCourse title
+    | _          -> None
 
-    | { Message = Some { Text = Some (PlainText courseTitle) } } ->
-      Some <| CreatingCourse.CreateCourse courseTitle
-
-    | _ ->
-      None
-
-  let getEditingCourse () =
-    match ctx.Update.CallbackQuery with
-    | Some { Data = Some (Command title) } ->
-      Some EditingCourse.EditTitle
-
-    | Some { Data = Some (Command desc) } ->
-      Some EditingCourse.EditDesc
-
-    | Some { Data = Some (Command exit) } ->
-      Some EditingCourse.Exit
-
-    | _ ->
-      None
+  let getEditingCourse () = None
 
   let getEditingTitle () =
-    match ctx.Update with
-    | { CallbackQuery = Some { Data = Some (Command cancel) } } ->
-      Some EditingTitle.Cancel
-
-    | { Message = Some { Text = Some (PlainText courseTitle) } } ->
-      Some <| EditingTitle.SetTitle courseTitle
-
-    | _ ->
-      None
+    match message with
+    | Text title -> Some <| EditingTitle.SetTitle title
+    | _          -> None
 
   let getEditingDesc () =
-    match ctx.Update with
-    | { CallbackQuery = Some { Data = Some (Command show) } } ->
-      Some EditingDesc.Show
+    match message with
+    | Text desc -> Some <| EditingDesc.SetDesc desc
+    | _         -> None
 
-    | { CallbackQuery = Some { Data = Some (Command cancel) } } ->
-      Some EditingDesc.Cancel
+  let getListingCourses () = None
 
-    | { Message = Some { Text = Some (PlainText courseDesc) } } ->
-      Some <| EditingDesc.SetDesc courseDesc
+  { getInactive = getInactive
+    getIdle = getIdle
+    getCreatingCourse = getCreatingCourse
+    getEditingCourse = getEditingCourse
+    getEditingTitle = getEditingTitle
+    getEditingDesc = getEditingDesc
+    getListingCourses = getListingCourses }
 
-    | _ ->
-      None
+let onQuery query =
+  let getInactive () = None
+
+  let getIdle () = None
+
+  let getCreatingCourse () =
+    match query with
+    | CommandQ cancel -> Some CreatingCourse.Cancel
+    | _               -> None
+
+  let getEditingCourse () =
+    match query with
+    | CommandQ title -> Some EditingCourse.EditTitle
+    | CommandQ desc  -> Some EditingCourse.EditDesc
+    | CommandQ exit  -> Some EditingCourse.Exit
+    | _              -> None
+
+  let getEditingTitle () =
+    match query with
+    | CommandQ cancel -> Some EditingTitle.Cancel
+    | _               -> None
+
+  let getEditingDesc () =
+    match query with
+    | CommandQ show   -> Some EditingDesc.Show
+    | CommandQ cancel -> Some EditingDesc.Cancel
+    | _               -> None
 
   let getListingCourses () =
-    match ctx.Update.CallbackQuery with
-    | Some { Data = Some (CommandParam edit courseId) } ->
-      Some (ListingCourses.Select courseId)
-
-    | Some { Data = Some (Command prev) } ->
-      Some ListingCourses.Prev
-
-    | Some { Data = Some (Command next) } ->
-      Some ListingCourses.Next
-
-    | Some { Data = Some (Command exit) } ->
-      Some ListingCourses.Exit
-
-    | _ ->
-      None
+    match query with
+    | ParamQ edit id -> Some <| ListingCourses.Select id
+    | CommandQ prev  -> Some ListingCourses.Prev
+    | CommandQ next  -> Some ListingCourses.Next
+    | CommandQ exit  -> Some ListingCourses.Exit
+    | _              -> None
 
   { getInactive = getInactive
     getIdle = getIdle

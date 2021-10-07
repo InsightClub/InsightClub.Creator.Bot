@@ -1,24 +1,11 @@
 module InsightClub.Creator.Bot.Api
 
-open Core
 open System
 open Funogram
 open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
 
-
-// Api helpers
-let getUser ctx =
-  match ctx.Update with
-  | { Message = Some { From = Some user } } ->
-    Some user
-
-  | { CallbackQuery = Some { From = user } } ->
-    Some user
-
-  | _ ->
-    None
 
 let inlineMarkup =
   Option.map
@@ -29,30 +16,29 @@ let markup =
   inlineMarkup
   >> Option.map InlineKeyboardMarkup
 
-let removeLastMarkupMaybe config lastId userId =
-  async
-    { if Option.isSome lastId then
-        do!
-          Api.editMessageReplyMarkupBase
-            (Some <| Int userId) lastId None None
-          |> Api.api config
-          |> Async.Ignore }
+let removeLastMarkupMaybe config userId lastId = async {
+  if Option.isSome lastId then
+    do!
+      Api.editMessageReplyMarkupBase
+        (Some <| Int userId) lastId None None
+      |> Api.api config
+      |> Async.Ignore }
 
-let sendMessage config lastId userId text keyboard  =
+let sendMessage config userId text keyboard lastId = async {
   if not <| String.IsNullOrEmpty text then
-    Api.sendMessageBase
-      (Int userId) text None None None None (markup keyboard)
-    |> Api.api config
-    |> Async.map
-      ( fun r ->
-          match r with
+    return!
+      Api.sendMessageBase
+        (Int userId) text None None None None (markup keyboard)
+      |> Api.api config
+      |> Async.map
+        ( function
           | Ok m ->
             m.ReplyMarkup
             |> Option.map (always m.MessageId)
 
           | Error _ -> None )
   else
-    Async.singleton lastId
+    return lastId }
 
 let answerCallbackQuery config (query: CallbackQuery) text =
   Api.answerCallbackQueryBase
@@ -60,66 +46,50 @@ let answerCallbackQuery config (query: CallbackQuery) text =
   |> Api.api config
   |> Async.Ignore
 
-let editMessage config lastId userId text keyboard =
+let editMessage config lastId userId text keyboard = async {
   let id = Some <| Int userId
 
   if not <| String.IsNullOrEmpty text then
-    Api.editMessageTextBase
-      id lastId None text None None (inlineMarkup keyboard)
-    |> Api.api config
-    |> Async.Ignore
+    do!
+      Api.editMessageTextBase
+        id lastId None text None None (inlineMarkup keyboard)
+      |> Api.api config
+      |> Async.Ignore
   else
-    Async.doNothing
+    () }
 
-// Render the state
-let handleState (ctx: UpdateContext) connection creatorId lastId state = async {
-  // onUpdate must ensure user is available, so this call is safe
-  let user = Option.get <| getUser ctx
+let handleMessage config userId message keyboard lastId = async {
+  let! _ =
+    removeLastMarkupMaybe config userId lastId
+    |> Async.StartChild
 
-  let! message, keyboard =
-    Render.state (Repo.getCourses connection creatorId) user state
+  return!
+    sendMessage config userId message keyboard lastId }
 
-  match ctx.Update with
-  | { Message = Some _ } ->
+let handleQuery config userId query message keyboard lastId = async {
+  let! _ =
+    answerCallbackQuery config query None
+    |> Async.StartChild
+
+  if Option.isSome lastId then
     let! _ =
-      removeLastMarkupMaybe ctx.Config lastId user.Id
-      |> Async.StartChild
+      editMessage config lastId userId message keyboard
 
+    return
+      keyboard
+      |> Option.bind (always lastId)
+  else
     return!
-      sendMessage ctx.Config lastId user.Id message keyboard
+      sendMessage config userId message keyboard lastId }
 
-  | { CallbackQuery = Some query } ->
+let handleEffect config userId query lastId effect = async {
+  match effect with
+  | Core.Nothing ->
+    return lastId
+
+  | Core.ShowDesc text ->
     let! _ =
-      answerCallbackQuery ctx.Config query None
-      |> Async.StartChild
-
-    if lastId.IsSome then
-      let! _ =
-        editMessage ctx.Config lastId user.Id message keyboard
-
-      return
-        keyboard
-        |> Option.bind (always lastId)
-    else
-      return!
-        sendMessage ctx.Config lastId user.Id message keyboard
-
-  | _ ->
-    return lastId }
-
-// Response for effect
-let handleEffect (ctx: UpdateContext) lastId =
-  // onUpdate must ensure user is available, so this call is safe
-  let user = Option.get <| getUser ctx
-  let config = ctx.Config
-
-  function
-  | Nothing ->
-    Async.singleton lastId
-
-  | ShowDesc text -> async {
-    let! _ =
-      removeLastMarkupMaybe config lastId user.Id
+      removeLastMarkupMaybe config userId lastId
       |> Async.StartChild
 
     let text =
@@ -128,49 +98,62 @@ let handleEffect (ctx: UpdateContext) lastId =
       else text
 
     do!
-      Api.sendMessage user.Id text
+      Api.sendMessage userId text
       |> Api.api config
       |> Async.Ignore
 
-    return None }
+    return None
 
-  | InformNoPrev -> async {
-    match ctx.Update.CallbackQuery with
-    | Some query ->
-      let! _ =
-        answerCallbackQuery ctx.Config query (Some "Вы дошли до минимума")
-        |> Async.StartChild
+  | Core.InformNoPrev ->
+    let! _ =
+      answerCallbackQuery config query (Some "Вы дошли до минимума")
+      |> Async.StartChild
 
-      return lastId
+    return lastId
 
-    | None ->
-      return lastId }
+  | Core.InformNoNext ->
+    let! _ =
+      answerCallbackQuery config query (Some "Вы дошли до максимума")
+      |> Async.StartChild
 
-  | InformNoNext -> async {
-    match ctx.Update.CallbackQuery with
-    | Some query ->
-      let! _ =
-        answerCallbackQuery ctx.Config query (Some "Вы дошли до максимума")
-        |> Async.StartChild
-
-      return lastId
-
-    | None ->
-      return lastId }
+    return lastId }
 
 // Main function
-let onUpdate getConnection ctx =
-  let update (user: User) = async {
-    use connection = getConnection ()
-    let! creatorId, lastId, state = State.get connection user.Id
-    let services = Services.get connection creatorId
-    let commands = Commands.get ctx
-    let! state, effect = update services commands state
-    let! lastId = handleEffect ctx lastId effect
-    let! lastId = handleState ctx connection creatorId lastId state
-    do! State.update connection creatorId lastId state }
+let onUpdate getConnection ctx = async {
+  let config = ctx.Config
+  match ctx.Update with
+  | { Message = Some ({ From = Some user } as message) } ->
+    let userId = user.Id
+    let commands = Commands.onMessage message
 
-  ctx
-  |> getUser // Ensure user is available
-  |> Option.map update
-  |> Option.defaultValue Async.doNothing
+    use connection = getConnection ()
+    let! creatorId, lastId, state = State.get connection userId
+    let services = Services.get connection creatorId
+    let getCourses = Repo.getCourses connection creatorId
+
+    let! state, _ = Core.update services commands state
+
+    let! message, keyboard = Render.state getCourses user state
+    let! lastId = handleMessage config userId message keyboard lastId
+
+    do! State.update connection creatorId lastId state
+
+  | { CallbackQuery = Some ({ From = user; Message = Some _ } as query) } ->
+    let userId = user.Id
+    let commands = Commands.onQuery query
+
+    use connection = getConnection ()
+    let! creatorId, lastId, state = State.get connection userId
+    let services = Services.get connection creatorId
+    let getCourses = Repo.getCourses connection creatorId
+
+    let! state, effect = Core.update services commands state
+
+    let! message, keyboard = Render.state getCourses user state
+    let! lastId = handleEffect config userId query lastId effect
+    let! lastId = handleQuery config userId query message keyboard lastId
+
+    do! State.update connection creatorId lastId state
+
+  | _ ->
+    () }
