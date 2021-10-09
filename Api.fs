@@ -17,146 +17,122 @@ let markup =
   >> Option.map InlineKeyboardMarkup
 
 let removeLastMarkupMaybe config userId lastId = async {
-  if Option.isSome lastId then
+  match lastId with
+  | Some lastId ->
     do!
       Api.editMessageReplyMarkupBase
-        (Some <| Int userId) lastId None None
+        (Some <| Int userId) (Some lastId) None None
       |> Api.api config
-      |> Async.Ignore }
-
-let sendMessage config userId text keyboard lastId = async {
-  if not <| String.IsNullOrEmpty text then
-    return!
-      Api.sendMessageBase
-        (Int userId) text None None None None (markup keyboard)
-      |> Api.api config
-      |> Async.map
-        ( function
-          | Ok m ->
-            m.ReplyMarkup
-            |> Option.map (always m.MessageId)
-
-          | Error _ -> None )
-  else
-    return lastId }
-
-let answerCallbackQuery config (query: CallbackQuery) text =
-  Api.answerCallbackQueryBase
-    (Some query.Id) text None None None
-  |> Api.api config
-  |> Async.Ignore
-
-let editMessage config lastId userId text keyboard = async {
-  let id = Some <| Int userId
-
-  if not <| String.IsNullOrEmpty text then
-    do!
-      Api.editMessageTextBase
-        id lastId None text None None (inlineMarkup keyboard)
-      |> Api.api config
+      |> Async.StartChild
       |> Async.Ignore
-  else
+  | None ->
     () }
 
-let answerMessage config userId message keyboard lastId = async {
-  let! _ =
-    removeLastMarkupMaybe config userId lastId
-    |> Async.StartChild
-
+let sendMessage config userId text keyboard = async {
   return!
-    sendMessage config userId message keyboard lastId }
+    Api.sendMessageBase
+      (Int userId) text None None None None (markup keyboard)
+    |> Api.api config
+    |> Async.map
+      ( function
+        | Ok m    -> Option.map (always m.MessageId) m.ReplyMarkup
+        | Error _ -> None ) }
 
-let answerQuery config userId message keyboard lastId query = async {
-  let! _ =
-    answerCallbackQuery config query None
+let answerCallbackQuery config queryId text =
+  Api.answerCallbackQueryBase
+    (Some queryId) text None None None
+  |> Api.api config
+  |> Async.StartChild
+  |> Async.Ignore
+
+let editMessage config messageId userId text keyboard = async {
+  let id = Some (Int userId)
+  let messageId = Some messageId
+  let keyboard = inlineMarkup keyboard
+  do!
+    Api.editMessageTextBase
+      id messageId None text None None keyboard
+    |> Api.api config
     |> Async.StartChild
+    |> Async.Ignore }
 
-  if Option.isSome lastId then
-    let! _ =
-      editMessage config lastId userId message keyboard
+let renderQueryEffect = function
+| Some (Commands.ShowDesc desc) ->
+  let text =
+    if desc = String.Empty
+    then $"У Вашего курса пока нет описания {Render.randomEmoji ()}"
+    else desc
 
-    return
-      keyboard
-      |> Option.bind (always lastId)
-  else
-    return!
-      sendMessage config userId message keyboard lastId }
+  Some text, None
 
-let handleEffect config userId lastId effect query = async {
-  match effect with
-  | Core.Nothing ->
-    return lastId
+| Some Commands.InformMin ->
+  None, Some "Вы дошли до минимума"
 
-  | Core.ShowDesc text ->
-    let! _ =
-      removeLastMarkupMaybe config userId lastId
-      |> Async.StartChild
+| Some Commands.InformMax ->
+  None, Some "Вы дошли до максимума"
 
-    let text =
-      if String.IsNullOrEmpty text
-      then $"У Вашего курса пока нет описания {Render.randomEmoji ()}"
-      else text
-
-    do!
-      Api.sendMessage userId text
-      |> Api.api config
-      |> Async.Ignore
-
-    return None
-
-  | Core.InformNoPrev ->
-    let! _ =
-      answerCallbackQuery config query (Some "Вы дошли до минимума")
-      |> Async.StartChild
-
-    return lastId
-
-  | Core.InformNoNext ->
-    let! _ =
-      answerCallbackQuery config query (Some "Вы дошли до максимума")
-      |> Async.StartChild
-
-    return lastId }
-
-let getData = function
-| { Update.Message = Some ({ From = Some user } as message) } ->
-  Some (user, Choice1Of2 message)
-
-| { CallbackQuery = Some ({ From = user; Message = Some _ } as query) } ->
-  Some (user, Choice2Of2 query)
-
-| _ ->
-  None
-
-let choice onMessage onQuery = function
-| Choice1Of2 message -> onMessage message
-| Choice2Of2 query   -> onQuery query
+| None ->
+  None, None
 
 let onUpdate getConnection ctx = async {
-  match getData ctx.Update with
-  | Some (user, req) ->
-    let config = ctx.Config
-    let userId = user.Id
-    let commands = choice Commands.onMessage Commands.onQuery req
+  use connection = getConnection ()
+  let config = ctx.Config
 
-    use connection = getConnection ()
-    let! creatorId, lastId, state = State.get connection userId
+  match ctx.Update with
+  | { Message = Some ({ From = Some user } as message) } ->
+    let! creatorId, lastId, state = State.get connection user.Id
+
     let services = Services.get connection creatorId
-
-    let! state, effect = Core.update services commands state
-
-    let messageEffect _ = Async.singleton lastId
-    let queryEffect = handleEffect config userId lastId effect
-
-    let! lastId = choice messageEffect queryEffect req
+    let commands = Commands.onMessage message
+    let! state, _ = Core.update services commands state
 
     let getCourses = Repo.getCourses connection creatorId
-    let! message, keyboard = Render.state getCourses user state
+    let! text, keyboard = Render.state getCourses user state
 
-    let answerMessage _ = answerMessage config userId message keyboard lastId
-    let answerQuery = answerQuery config userId message keyboard lastId
+    do! removeLastMarkupMaybe config user.Id lastId
 
-    let! lastId = choice answerMessage answerQuery req
+    let! lastId =
+      if text <> String.Empty then
+        sendMessage config user.Id text keyboard
+      else
+        Async.singleton None
+
+    do! State.update connection creatorId lastId state
+
+  | { CallbackQuery = Some ({ From = user; Message = Some message } as query) } ->
+    let! creatorId, _, state = State.get connection user.Id
+
+    let services = Services.get connection creatorId
+    let commands = Commands.onQuery query
+    let! state, effect = Core.update services commands state
+
+    let effectText, queryAnswer = renderQueryEffect effect
+
+    let getCourses = Repo.getCourses connection creatorId
+    let! text, keyboard = Render.state getCourses user state
+
+    do! answerCallbackQuery config query.Id queryAnswer
+
+    let! lastId = async {
+      match effectText with
+      | Some effectText ->
+        do! removeLastMarkupMaybe config user.Id (Some message.MessageId)
+
+        do!
+          sendMessage config user.Id effectText None
+          |> Async.Ignore
+
+        if text <> String.Empty then
+          return! sendMessage config user.Id text keyboard
+        else
+          return None
+
+      | None ->
+        if text <> String.Empty then
+          do! editMessage config message.MessageId user.Id text keyboard
+          return Option.map (always message.MessageId) keyboard
+        else
+          return Some message.MessageId }
 
     do! State.update connection creatorId lastId state
 

@@ -185,8 +185,8 @@ module private Button =
   let title = "Название ✏️"
   let desc = "Описание 🖋"
   let show = "Показать 👁"
-  let prev = "Назад ⬅️"
-  let next = "Вперёд ➡️"
+  let prev = "⬅️"
+  let next = "➡️"
 
 let private button text command =
   { Text = text

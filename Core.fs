@@ -62,8 +62,8 @@ module EditingTitle =
     | Error
 
 module EditingDesc =
-  type Command =
-    | Show
+  type Command<'Effect> =
+    | Show of (CourseDesc -> 'Effect)
     | Cancel
     | SetDesc of CourseDesc
 
@@ -72,10 +72,10 @@ module EditingDesc =
     | Error
 
 module ListingCourses =
-  type Command =
+  type Command<'Effect> =
     | Select of CourseId
-    | Prev
-    | Next
+    | Prev of 'Effect
+    | Next of 'Effect
     | Exit
 
   type Msg =
@@ -91,231 +91,190 @@ type BotState =
   | EditingDesc of CourseId * EditingDesc.Msg
   | ListingCourses of Page * Count * ListingCourses.Msg
 
-type BotEffect =
-  | Nothing
-  | ShowDesc of CourseDesc
-  | InformNoPrev
-  | InformNoNext
+type GetCommand<'Command> = unit -> Option<'Command>
 
-type CommandGetter<'c> = unit -> Option<'c>
+type BotCommands<'Effect> =
+  { getInactive: GetCommand<Inactive.Command>
+    getIdle: GetCommand<Idle.Command>
+    getCreatingCourse: GetCommand<CreatingCourse.Command>
+    getEditingCourse: GetCommand<EditingCourse.Command>
+    getEditingTitle: GetCommand<EditingTitle.Command>
+    getEditingDesc: GetCommand<EditingDesc.Command<'Effect>>
+    getListingCourses: GetCommand<ListingCourses.Command<'Effect>> }
 
-type BotCommands =
-  { getInactive: CommandGetter<Inactive.Command>
-    getIdle: CommandGetter<Idle.Command>
-    getCreatingCourse: CommandGetter<CreatingCourse.Command>
-    getEditingCourse: CommandGetter<EditingCourse.Command>
-    getEditingTitle: CommandGetter<EditingTitle.Command>
-    getEditingDesc: CommandGetter<EditingDesc.Command>
-    getListingCourses: CommandGetter<ListingCourses.Command> }
+type Service<'Param, 'Result> = ('Param -> 'Result) -> 'Result
 
-type Service<'p, 'a> = ('p -> 'a) -> 'a
-
-type BotServices<'a> =
-  { callback: BotState * BotEffect -> 'a
-    tryCreateCourse: CourseTitle -> Service<CourseId option, 'a>
-    tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'a>
-    getCourseTitle: CourseId -> Service<CourseTitle, 'a>
-    getCourseDesc: CourseId -> Service<CourseDesc, 'a>
-    updateDesc: CourseId -> CourseDesc -> Service<unit, 'a>
-    checkAnyCourse: Service<bool, 'a>
-    getCoursesCount: Service<Count, 'a> }
+type BotServices<'Effect, 'Result> =
+  { callback: BotState -> 'Effect option -> 'Result
+    tryCreateCourse: CourseTitle -> Service<CourseId option, 'Result>
+    tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'Result>
+    getCourseTitle: CourseId -> Service<CourseTitle, 'Result>
+    getCourseDesc: CourseId -> Service<CourseDesc, 'Result>
+    updateDesc: CourseId -> CourseDesc -> Service<unit, 'Result>
+    checkAnyCourse: Service<bool, 'Result>
+    getCoursesCount: Service<Count, 'Result> }
 
 // Values
 /// Initial state
 let initial = Inactive
 
-let private updateInactive services =
-  let callback x = services.callback (x, Nothing)
-  function
-  | Some Inactive.Start ->
-    Idle Idle.Started
-    |> callback
+let private updateInactive callback = function
+| Some Inactive.Start ->
+  callback (Idle Idle.Started) None
 
-  | None ->
-    Inactive
-    |> callback
+| None ->
+  callback Inactive None
 
-let private updateIdle services =
-  let callback x = services.callback (x, Nothing)
-  function
-  | Some Idle.Help ->
-    Idle Idle.Helping
-    |> callback
+let private updateIdle callback checkAnyCourse = function
+| Some Idle.Help ->
+  callback (Idle Idle.Helping) None
 
-  | Some Idle.CreateCourse ->
-    CreatingCourse CreatingCourse.Started
-    |> callback
+| Some Idle.CreateCourse ->
+  callback (CreatingCourse CreatingCourse.Started) None
 
-  | Some (Idle.EditCourse count) ->
-    services.checkAnyCourse <|
-      fun any ->
-        callback <|
-          if any then
-            ListingCourses (0, count, ListingCourses.Started)
-          else
-            Idle Idle.NoCourses
+| Some (Idle.EditCourse count) ->
+  checkAnyCourse <|
+    fun any ->
+      let state =
+        if any then
+          ListingCourses (0, count, ListingCourses.Started)
+        else
+          Idle Idle.NoCourses
+      callback state None
 
-  | None ->
-    Idle Idle.Error
-    |> callback
+| None ->
+  callback (Idle Idle.Error) None
 
-let private updateCreatingCourse services =
-  let callback x = services.callback (x, Nothing)
-  function
-  | Some CreatingCourse.Cancel ->
-    Idle Idle.CreateCanceled
-    |> callback
+let private updateCreatingCourse callback tryCreateCourse = function
+| Some CreatingCourse.Cancel ->
+  callback (Idle Idle.CreateCanceled) None
 
-  | Some (CreatingCourse.CreateCourse title) ->
-    services.tryCreateCourse title <|
-      fun courseId ->
-        callback <|
-          match courseId with
-          | Some courseId ->
-            EditingCourse (courseId, EditingCourse.CourseCreated)
+| Some (CreatingCourse.CreateCourse title) ->
+  tryCreateCourse title <|
+    function
+    | Some courseId ->
+      callback (EditingCourse (courseId, EditingCourse.CourseCreated)) None
 
-          | None ->
-            CreatingCourse CreatingCourse.TitleReserved
+    | None ->
+      callback (CreatingCourse CreatingCourse.TitleReserved) None
 
-  | None ->
-    CreatingCourse CreatingCourse.Error
-    |> callback
+| None ->
+  callback (CreatingCourse CreatingCourse.Error) None
 
-let private updateEditingCourse services courseId =
-  let callback x = services.callback (x, Nothing)
-  function
-  | Some EditingCourse.EditTitle ->
-    services.getCourseTitle courseId <|
-      fun courseTitle ->
-        EditingTitle (courseId, courseTitle, EditingTitle.Started)
-        |> callback
+let private updateEditingCourse callback getCourseTitle courseId = function
+| Some EditingCourse.EditTitle ->
+  getCourseTitle courseId <|
+    fun courseTitle ->
+      callback (EditingTitle (courseId, courseTitle, EditingTitle.Started)) None
 
-  | Some EditingCourse.EditDesc ->
-    EditingDesc (courseId, EditingDesc.Started)
-    |> callback
+| Some EditingCourse.EditDesc ->
+  callback (EditingDesc (courseId, EditingDesc.Started)) None
 
-  | Some EditingCourse.Exit ->
-    Idle Idle.ExitedEditing
-    |> callback
+| Some EditingCourse.Exit ->
+  callback (Idle Idle.ExitedEditing) None
 
-  | None ->
-    EditingCourse (courseId, EditingCourse.Error)
-    |> callback
+| None ->
+  callback (EditingCourse (courseId, EditingCourse.Error)) None
 
-let private updateEditingTitle services courseId courseTitle =
-  let callback x = services.callback (x, Nothing)
-  function
-  | Some EditingTitle.Cancel ->
-    EditingCourse (courseId, EditingCourse.TitleCanceled)
-    |> callback
+let private updateEditingTitle
+  callback tryUpdateTitle courseId courseTitle = function
+| Some EditingTitle.Cancel ->
+  callback (EditingCourse (courseId, EditingCourse.TitleCanceled)) None
 
-  | Some (EditingTitle.SetTitle title) ->
-    services.tryUpdateTitle courseId title <|
-      fun isOk ->
-        callback <|
-          if isOk then
-            EditingCourse (courseId, EditingCourse.TitleSet)
-          else
-            EditingTitle
-              ( courseId,
-                courseTitle,
-                EditingTitle.TitleReserved )
+| Some (EditingTitle.SetTitle title) ->
+  tryUpdateTitle courseId title <|
+    function
+    | true ->
+      callback
+        (EditingCourse (courseId, EditingCourse.TitleSet))
+        None
 
-  | None ->
-    EditingTitle (courseId, courseTitle, EditingTitle.Error)
-    |> callback
+    | false ->
+      callback
+        ( EditingTitle
+            ( courseId,
+              courseTitle,
+              EditingTitle.TitleReserved ) )
+        None
 
-let private updateEditingDesc services courseId =
-  let callback = services.callback
-  function
-  | Some EditingDesc.Show ->
-    services.getCourseDesc courseId <|
-      fun desc ->
-        EditingDesc (courseId, EditingDesc.Started)
-        &> ShowDesc desc
-        |> callback
+| None ->
+  callback (EditingTitle (courseId, courseTitle, EditingTitle.Error)) None
 
-  | Some EditingDesc.Cancel ->
-    EditingCourse (courseId, EditingCourse.DescCanceled)
-    &> Nothing
-    |> callback
+let private updateEditingDesc
+  callback getCourseDesc updateDesc courseId = function
+| Some (EditingDesc.Show show) ->
+  getCourseDesc courseId <|
+    fun desc ->
+      callback (EditingDesc (courseId, EditingDesc.Started)) (Some <| show desc)
 
-  | Some (EditingDesc.SetDesc desc) ->
-    services.updateDesc courseId desc <|
-      fun () ->
-        EditingCourse (courseId, EditingCourse.DescSet)
-        &> Nothing
-        |> callback
+| Some EditingDesc.Cancel ->
+  callback (EditingCourse (courseId, EditingCourse.DescCanceled)) None
 
-  | None ->
-    EditingDesc (courseId, EditingDesc.Error)
-    &> Nothing
-    |> callback
+| Some (EditingDesc.SetDesc desc) ->
+  updateDesc courseId desc <|
+    fun () ->
+      callback (EditingCourse (courseId, EditingCourse.DescSet)) None
 
-let private updateListingCourses services page count =
-  let callback = services.callback
-  function
-  | Some (ListingCourses.Select courseId) ->
-    EditingCourse (courseId, EditingCourse.Editing)
-    &> Nothing
-    |> callback
+| None ->
+  callback (EditingDesc (courseId, EditingDesc.Error)) None
 
-  | Some ListingCourses.Prev ->
-    callback <|
-      if page = 0 then
-        ListingCourses (page, count, ListingCourses.Started)
-        &> InformNoPrev
-      else
-        ListingCourses (page - 1, count, ListingCourses.Started)
-        &> Nothing
+let private updateListingCourses callback getCoursesCount page count = function
+| Some (ListingCourses.Select courseId) ->
+  callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
-  | Some ListingCourses.Next ->
-    services.getCoursesCount <|
-      fun coursesCount ->
-        callback <|
-          if (page + 1) * count >= coursesCount then
-            ListingCourses (page, count, ListingCourses.Started)
-            &> InformNoNext
-          else
-            ListingCourses (page + 1, count, ListingCourses.Started)
-            &> Nothing
+| Some (ListingCourses.Prev informMin) ->
+  let state, effect =
+    if page = 0 then
+      ListingCourses (page, count, ListingCourses.Started), Some informMin
+    else
+      ListingCourses (page - 1, count, ListingCourses.Started), None
 
-  | Some ListingCourses.Exit ->
-    Idle Idle.EditCanceled
-    &> Nothing
-    |> callback
+  callback state effect
 
-  | None ->
-    ListingCourses (page, count, ListingCourses.Error)
-    &> Nothing
-    |> callback
+| Some (ListingCourses.Next informMax) ->
+  getCoursesCount <|
+    fun coursesCount ->
+      let state, effect =
+        if (page + 1) * count >= coursesCount then
+          ListingCourses (page, count, ListingCourses.Started), Some informMax
+        else
+          ListingCourses (page + 1, count, ListingCourses.Started), None
+
+      callback state effect
+
+| Some ListingCourses.Exit ->
+  callback (Idle Idle.EditCanceled) None
+
+| None ->
+  callback (ListingCourses (page, count, ListingCourses.Error)) None
 
 let update services commands =
+  let s = services
   function
   | Inactive ->
     commands.getInactive ()
-    |> updateInactive services
+    |> updateInactive s.callback
 
   | Idle _ ->
     commands.getIdle ()
-    |> updateIdle services
+    |> updateIdle s.callback s.checkAnyCourse
 
   | CreatingCourse _ ->
     commands.getCreatingCourse ()
-    |> updateCreatingCourse services
+    |> updateCreatingCourse s.callback s.tryCreateCourse
 
   | EditingCourse (courseId, _) ->
     commands.getEditingCourse ()
-    |> updateEditingCourse services courseId
+    |> updateEditingCourse s.callback s.getCourseTitle courseId
 
   | EditingTitle (courseId, courseTitle, _) ->
     commands.getEditingTitle ()
-    |> updateEditingTitle services courseId courseTitle
+    |> updateEditingTitle s.callback s.tryUpdateTitle courseId courseTitle
 
   | EditingDesc (courseId, _) ->
     commands.getEditingDesc ()
-    |> updateEditingDesc services courseId
+    |> updateEditingDesc s.callback s.getCourseDesc s.updateDesc courseId
 
   | ListingCourses (page, count, _) ->
     commands.getListingCourses ()
-    |> updateListingCourses services page count
+    |> updateListingCourses s.callback s.getCoursesCount page count

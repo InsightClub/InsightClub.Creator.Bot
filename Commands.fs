@@ -5,6 +5,11 @@ open System
 open Funogram.Telegram.Types
 
 
+type QueryEffect =
+  | ShowDesc of Core.CourseDesc
+  | InformMin
+  | InformMax
+
 let start = "/start"
 let help = "/help"
 let new' = "/new"
@@ -39,7 +44,7 @@ let private (|ParamQ|_|) command = function
 
   | _ -> None
 
-let onMessage message =
+let onMessage message : BotCommands<unit> =
   let getInactive () =
     match message with
     | Command start -> Some Inactive.Start
@@ -103,15 +108,15 @@ let onQuery query =
 
   let getEditingDesc () =
     match query with
-    | CommandQ show   -> Some EditingDesc.Show
+    | CommandQ show   -> Some <| EditingDesc.Show QueryEffect.ShowDesc
     | CommandQ cancel -> Some EditingDesc.Cancel
     | _               -> None
 
   let getListingCourses () =
     match query with
     | ParamQ edit id -> Some <| ListingCourses.Select id
-    | CommandQ prev  -> Some ListingCourses.Prev
-    | CommandQ next  -> Some ListingCourses.Next
+    | CommandQ prev  -> Some <| ListingCourses.Prev QueryEffect.InformMin
+    | CommandQ next  -> Some <| ListingCourses.Next QueryEffect.InformMax
     | CommandQ exit  -> Some ListingCourses.Exit
     | _              -> None
 
