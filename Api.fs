@@ -16,7 +16,7 @@ let markup =
   inlineMarkup
   >> Option.map InlineKeyboardMarkup
 
-let removeLastMarkupMaybe config userId messageId = async {
+let removeKeyboard config userId messageId = async {
   do!
     Api.editMessageReplyMarkupBase
       (Some <| Int userId) (Some messageId) None None
@@ -87,7 +87,7 @@ let onUpdate getConnection ctx = async {
 
     match lastId with
     | Some messageId ->
-      do! removeLastMarkupMaybe config user.Id messageId
+      do! removeKeyboard config user.Id messageId
 
     | None ->
       ()
@@ -117,7 +117,7 @@ let onUpdate getConnection ctx = async {
     let! lastId = async {
       match effectText with
       | Some effectText ->
-        do! removeLastMarkupMaybe config user.Id message.MessageId
+        do! removeKeyboard config user.Id message.MessageId
 
         do!
           sendMessage config user.Id effectText None
