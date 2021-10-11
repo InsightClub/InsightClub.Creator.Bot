@@ -16,10 +16,10 @@ let markup =
   inlineMarkup
   >> Option.map InlineKeyboardMarkup
 
-let removeLastMarkupMaybe config userId lastId = async {
+let removeLastMarkupMaybe config userId messageId = async {
   do!
     Api.editMessageReplyMarkupBase
-      (Some <| Int userId) (Some lastId) None None
+      (Some <| Int userId) (Some messageId) None None
     |> Api.api config
     |> Async.StartChild
     |> Async.Ignore }
