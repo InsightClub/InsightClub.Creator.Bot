@@ -17,16 +17,12 @@ let markup =
   >> Option.map InlineKeyboardMarkup
 
 let removeLastMarkupMaybe config userId lastId = async {
-  match lastId with
-  | Some lastId ->
-    do!
-      Api.editMessageReplyMarkupBase
-        (Some <| Int userId) (Some lastId) None None
-      |> Api.api config
-      |> Async.StartChild
-      |> Async.Ignore
-  | None ->
-    () }
+  do!
+    Api.editMessageReplyMarkupBase
+      (Some <| Int userId) (Some lastId) None None
+    |> Api.api config
+    |> Async.StartChild
+    |> Async.Ignore }
 
 let sendMessage config userId text keyboard = async {
   return!
@@ -89,7 +85,12 @@ let onUpdate getConnection ctx = async {
     let getCourses = Repo.getCourses connection creatorId
     let! text, keyboard = Render.state getCourses user state
 
-    do! removeLastMarkupMaybe config user.Id lastId
+    match lastId with
+    | Some messageId ->
+      do! removeLastMarkupMaybe config user.Id messageId
+
+    | None ->
+      ()
 
     let! lastId =
       if text <> String.Empty then
@@ -116,7 +117,7 @@ let onUpdate getConnection ctx = async {
     let! lastId = async {
       match effectText with
       | Some effectText ->
-        do! removeLastMarkupMaybe config user.Id (Some message.MessageId)
+        do! removeLastMarkupMaybe config user.Id message.MessageId
 
         do!
           sendMessage config user.Id effectText None
