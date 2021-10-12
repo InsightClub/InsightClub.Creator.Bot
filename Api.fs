@@ -75,6 +75,7 @@ let onUpdate getConnection ctx = async {
   let config = ctx.Config
 
   match ctx.Update with
+  // Message updates
   | { Message = Some ({ From = Some user } as message) } ->
     let! creatorId, lastId, state = State.get connection user.Id
 
@@ -100,6 +101,7 @@ let onUpdate getConnection ctx = async {
 
     do! State.update connection creatorId lastId state
 
+  // Inline keyboard updates
   | { CallbackQuery = Some ({ From = user; Message = Some message } as query) } ->
     let! creatorId, _, state = State.get connection user.Id
 
