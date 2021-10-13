@@ -172,3 +172,69 @@ let getCourses connection creatorId page count =
         read.int "course_id",
         read.string "course_title" )
   |> Async.AwaitTask
+
+let tryCreateBlock connection courseId blockIndex blockTitle = async {
+  try
+    use! transaction =
+      (connection: NpgsqlConnection)
+        .BeginTransactionAsync()
+        .AsTask()
+      |> Async.AwaitTask
+
+    do!
+      connection
+      |> Sql.existingConnection
+      |> Sql.query
+        "UPDATE blocks
+        SET block_index = block_index + 1
+        WHERE course_id = @course_id
+        AND block_index >= @block_index"
+      |> Sql.parameters
+        [ "course_id", Sql.int courseId
+          "block_index", Sql.int blockIndex ]
+      |> Sql.executeNonQueryAsync
+      |> Async.AwaitTask
+      |> Async.Ignore
+
+    let! blockId =
+      connection
+      |> Sql.existingConnection
+      |> Sql.query
+        "INSERT INTO blocks(course_id, block_index, block_title)
+        VALUES (@course_id, @block_index, @block_title)
+        RETURNING block_id"
+      |> Sql.parameters
+        [ "course_id", Sql.int courseId
+          "block_index", Sql.int blockIndex
+          "block_title", Sql.string blockTitle ]
+      |> Sql.executeRowAsync
+        ( fun read -> read.int "block_id")
+      |> Async.AwaitTask
+
+    do!
+      transaction.CommitAsync()
+      |> Async.AwaitTask
+
+    return Some blockId
+  with
+  | :? AggregateException as e when
+    (e.InnerException :? PostgresException) &&
+    (e.InnerException :?> PostgresException).SqlState
+      = PostgresErrorCodes.UniqueViolation ->
+    return None }
+
+let getLastBlockIndex connection courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT COALESCE(
+      ( SELECT MAX(block_index)
+        FROM blocks
+        WHERE course_id = @course_id ),
+      0
+    ) as last_index"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync
+    ( fun read -> read.int "last_index" )
+  |> Async.AwaitTask

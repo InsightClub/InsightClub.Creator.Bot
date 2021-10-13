@@ -21,6 +21,8 @@ let show = "/show"
 let edit = "/edit"
 let prev = "/prev"
 let next = "/next"
+let add = "/add"
+let back = "/back"
 
 let private (|Command|_|) command = function
   | { Message.Text = Some text }
@@ -76,13 +78,22 @@ let onMessage message : BotCommands<unit> =
 
   let getListingCourses () = None
 
+  let getCreatingBlock () =
+    match message with
+    | Text title -> Some <| CreatingBlock.CreateBlock title
+    | _          -> None
+
+  let getEditingBlock () = None
+
   { getInactive = getInactive
     getIdle = getIdle
     getCreatingCourse = getCreatingCourse
     getEditingCourse = getEditingCourse
     getEditingTitle = getEditingTitle
     getEditingDesc = getEditingDesc
-    getListingCourses = getListingCourses }
+    getListingCourses = getListingCourses
+    getCreatingBlock = getCreatingBlock
+    getEditingBlock = getEditingBlock }
 
 let onQuery query =
   let getInactive () = None
@@ -99,6 +110,7 @@ let onQuery query =
     | CommandQ title -> Some EditingCourse.EditTitle
     | CommandQ desc  -> Some EditingCourse.EditDesc
     | CommandQ exit  -> Some EditingCourse.Exit
+    | CommandQ add   -> Some EditingCourse.AddBlock
     | _              -> None
 
   let getEditingTitle () =
@@ -120,10 +132,23 @@ let onQuery query =
     | CommandQ exit  -> Some ListingCourses.Exit
     | _              -> None
 
+  let getCreatingBlock () =
+    match query with
+    | CommandQ cancel -> Some CreatingBlock.Cancel
+    | _               -> None
+
+  let getEditingBlock () =
+    match query with
+    | CommandQ back -> Some EditingBlock.Back
+    | CommandQ next -> Some EditingBlock.CreateNext
+    | _             -> None
+
   { getInactive = getInactive
     getIdle = getIdle
     getCreatingCourse = getCreatingCourse
     getEditingCourse = getEditingCourse
     getEditingTitle = getEditingTitle
     getEditingDesc = getEditingDesc
-    getListingCourses = getListingCourses }
+    getListingCourses = getListingCourses
+    getCreatingBlock = getCreatingBlock
+    getEditingBlock = getEditingBlock }
