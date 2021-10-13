@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <None Include="Default.Config.yaml" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="Config.yaml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Config.yaml" CopyToOutputDirectory="PreserveNewest" Condition="'$(Configuration)'=='DEBUG'" />
     <None Include=".gitignore" />
     <None Include=".gitattributes" />
     <None Include=".editorconfig" />
