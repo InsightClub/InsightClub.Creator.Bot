@@ -1,9 +1,19 @@
 module InsightClub.Creator.Bot.Repo
 
+open System
 open Npgsql
 open Npgsql.FSharp
-open System
 
+
+module Sql =
+  let contentType t =
+    let parameter =
+      NpgsqlParameter
+        ( "content_type",
+          (t: string),
+          DataTypeName = "content_type" )
+
+    Sql.parameter parameter
 
 let tryCreateCourse connection creatorId courseTitle = async {
   try
@@ -238,3 +248,28 @@ let getLastBlockIndex connection courseId =
   |> Sql.executeRowAsync
     ( fun read -> read.int "last_index" )
   |> Async.AwaitTask
+
+let addContent connection blockId content contentType =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "INSERT INTO contents(block_id, content_index, content, content_type)
+    VALUES (
+      @block_id,
+      ( SELECT COALESCE(
+          ( SELECT MAX(content_index)
+            FROM contents
+            WHERE block_id = @block_id ) + 1,
+          0
+        )
+      ),
+      @content,
+      @content_type
+    )"
+  |> Sql.parameters
+    [ "block_id", Sql.int blockId
+      "content", Sql.string content
+      "content_type", Sql.contentType contentType ]
+  |> Sql.executeNonQueryAsync
+  |> Async.AwaitTask
+  |> Async.Ignore

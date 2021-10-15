@@ -2,9 +2,12 @@ module InsightClub.Creator.Bot.Render
 
 open Core
 open System
-open Funogram.Telegram.Types
+open Funogram.Telegram
 open System.Text.RegularExpressions
 
+
+type User = Types.User
+type Button = Types.InlineKeyboardButton
 
 let private c s = Regex("\n[ ]+").Replace(s, "\n")
 let private random = Random()
@@ -198,10 +201,33 @@ let private creatingBlockMsg = function
 let private editingBlockMsg index title = function
 | EditingBlock.Started ->
   c$"Режим редактирования блока ✨
+    Отправьте текст, фото, аудио, видео, голос, документ \
+    или короткое видео, чтоб добавить его в конец блока.
+
     {index}: {title}"
+
+| EditingBlock.ContentAdded content ->
+  let addedMsg =
+    match content with
+    | Text _ -> "Текст добавлен."
+    | Photo _ -> "Фото добавлено."
+    | Audio _ -> "Аудио добавлено."
+    | Video _ -> "Видео добавлено."
+    | Voice _ -> "Голос добавлен."
+    | Document _ -> "Документ добавлен."
+    | VideoNote _ -> "Короткое видео добавлено."
+
+  c$"{addedMsg}
+
+  Отправьте текст, фото, аудио, видео, голос, документ \
+  или короткое видео, чтоб добавить его в конец блока.
+
+  {index}: {title}"
 
 | EditingBlock.Error ->
   c$"Неизвестная команда {randomEmoji ()}
+    Отправьте текст, фото, аудио, видео, голос, документ \
+    или короткое видео, чтоб добавить его в конец блока.
 
     Режим редактирования блока.
     {index}: {title}"
@@ -217,7 +243,7 @@ module private Button =
   let add = "Добавить ➕"
   let back = "Назад 🚪"
 
-let private button text command =
+let private button text command : Button =
   { Text = text
     CallbackData = Some command
     Url = None

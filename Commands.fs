@@ -2,8 +2,11 @@ module InsightClub.Creator.Bot.Commands
 
 open Core
 open System
-open Funogram.Telegram.Types
+open Funogram.Telegram
 
+
+type Message = Types.Message
+type CallbackQuery = Types.CallbackQuery
 
 type QueryEffect =
   | ShowDesc of Core.CourseDesc
@@ -32,6 +35,30 @@ let private (|Command|_|) command = function
 let private (|Text|_|) = function
   | { Message.Text = Some text } -> Some text
   | _                            -> None
+
+let private (|Photo|_|) = function
+| { Message.Photo = Some sizes } -> Some <| (Seq.head sizes).FileId
+| _                             -> None
+
+let private (|Audio|_|) = function
+| { Message.Audio = Some audio } -> Some audio.FileId
+| _                              -> None
+
+let private (|Video|_|) = function
+| { Message.Video = Some video } -> Some video.FileId
+| _                              -> None
+
+let private (|Voice|_|) = function
+| { Message.Voice = Some voice } -> Some voice.FileId
+| _                              -> None
+
+let private (|Document|_|) = function
+| { Message.Document = Some document } -> Some document.FileId
+| _                                    -> None
+
+let private (|VideoNote|_|) = function
+| { Message.VideoNote = Some note } -> Some note.FileId
+| _                                 -> None
 
 let private (|CommandQ|_|) command = function
 | { CallbackQuery.Data = Some text }
@@ -83,7 +110,16 @@ let onMessage message : BotCommands<unit> =
     | Text title -> Some <| CreatingBlock.CreateBlock title
     | _          -> None
 
-  let getEditingBlock () = None
+  let getEditingBlock () =
+    match message with
+    | Text text        -> Some <| EditingBlock.AddContent (Text text)
+    | Photo fileId     -> Some <| EditingBlock.AddContent (Photo fileId)
+    | Audio fileId     -> Some <| EditingBlock.AddContent (Audio fileId)
+    | Video fileId     -> Some <| EditingBlock.AddContent (Video fileId)
+    | Voice fileId     -> Some <| EditingBlock.AddContent (Voice fileId)
+    | Document fileId  -> Some <| EditingBlock.AddContent (Document fileId)
+    | VideoNote fileId -> Some <| EditingBlock.AddContent (VideoNote fileId)
+    | _                -> None
 
   { getInactive = getInactive
     getIdle = getIdle

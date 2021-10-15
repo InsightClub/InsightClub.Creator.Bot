@@ -2,11 +2,8 @@
 module InsightClub.Creator.Bot.Helpers
 
 
-/// Returns always first value
+/// Always returns first value
 let always x _ = x
-
-/// Pairs two values in one tuple
-let (&>) x y = (x, y)
 
 // Wraps tuple result into an option
 let tryParseWith (tryParseFunc: string -> bool * _) =

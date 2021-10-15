@@ -60,6 +60,21 @@ let get connection creatorId =
 
     return! callback lastIndex }
 
+  let addContent blockId content callback = async {
+    let content, contentType =
+      match content with
+      | Text text -> text, "text"
+      | Photo fileId -> fileId, "photo"
+      | Audio fileId -> fileId, "audio"
+      | Video fileId -> fileId, "video"
+      | Voice fileId -> fileId, "voice"
+      | Document fileId -> fileId, "document"
+      | VideoNote fileId -> fileId, "video_note"
+
+    do! Repo.addContent connection blockId content contentType
+
+    return! callback () }
+
   { callback = callback
     tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
@@ -69,4 +84,5 @@ let get connection creatorId =
     checkAnyCourse = checkAnyCourse
     getCoursesCount = getCoursesCount
     tryCreateBlock = tryCreateBlock
-    getLastBlockIndex = getLastBlockIndex }
+    getLastBlockIndex = getLastBlockIndex
+    addContent = addContent }

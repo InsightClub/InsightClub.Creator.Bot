@@ -10,6 +10,17 @@ type BlockTitle = string
 type Page = int
 type Count = int
 type Index = int
+type Text = string
+type FileId = string
+
+type Content =
+  | Text of Text
+  | Photo of FileId
+  | Audio of FileId
+  | Video of FileId
+  | Voice of FileId
+  | Document of FileId
+  | VideoNote of FileId
 
 module Inactive =
   type Command = Start
@@ -101,9 +112,11 @@ module EditingBlock =
   type Command =
     | Back
     | CreateNext
+    | AddContent of Content
 
   type Msg =
     | Started
+    | ContentAdded of Content
     | Error
 
 type BotState =
@@ -143,7 +156,8 @@ type BotServices<'Effect, 'Result> =
     getCoursesCount: Service<Count, 'Result>
     tryCreateBlock:
       CourseId -> Index -> BlockTitle -> Service<BlockId option, 'Result>
-    getLastBlockIndex: CourseId -> Service<Index, 'Result> }
+    getLastBlockIndex: CourseId -> Service<Index, 'Result>
+    addContent: BlockId -> Content -> Service<unit, 'Result> }
 
 // Values
 /// Initial state
@@ -317,12 +331,25 @@ let private updateCreatingBlock
 | None ->
   callback (CreatingBlock (courseId, lastIndex, CreatingBlock.Error)) None
 
-let private updateEditingBlock callback courseId blockId index title = function
+let private updateEditingBlock
+  callback addContent courseId blockId index title = function
 | Some EditingBlock.Back ->
   callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
 | Some EditingBlock.CreateNext ->
   callback (CreatingBlock (courseId, index, CreatingBlock.Started)) None
+
+| Some (EditingBlock.AddContent content) ->
+  addContent blockId content <|
+    fun () ->
+      callback
+        ( EditingBlock
+        ( courseId,
+          blockId,
+          index,
+          title,
+          EditingBlock.ContentAdded content) )
+        None
 
 | None ->
   callback
@@ -372,4 +399,4 @@ let update services commands =
 
   | EditingBlock (courseId, blockId, index, title, _) ->
     commands.getEditingBlock ()
-    |> updateEditingBlock s.callback courseId blockId index title
+    |> updateEditingBlock s.callback s.addContent courseId blockId index title
