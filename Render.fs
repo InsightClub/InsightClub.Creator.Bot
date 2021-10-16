@@ -123,6 +123,19 @@ let private editingCourseMsg = function
     Режим редактирования курса ✏️
     Выберите что Вы хотели бы сделать дальше."
 
+| EditingCourse.BlockCanceled ->
+  c "Редактирование блока отменено 👌
+
+    Режим редактирования курса ✏️
+    Выберите что Вы хотели бы сделать дальше."
+
+| EditingCourse.NoBlocks ->
+  c$"В этом курсе пока нет блоков {randomEmoji ()}
+    Нажмите на кнопку «Добавить», чтоб добавить один или несколько блоков 🤹‍♂️
+
+    Режим редактирования курса ✏️
+    Выберите что Вы хотели бы сделать дальше."
+
 | EditingCourse.Error ->
   c$"Неизвестная команда {randomEmoji ()}
 
@@ -232,6 +245,26 @@ let private editingBlockMsg index title = function
     Режим редактирования блока.
     {index}: {title}"
 
+let private listingBlocksMsg page count blocksCount msg =
+  let m s =
+    match msg with
+    | ListingBlocks.Started ->
+      s
+
+    | ListingBlocks.Error ->
+      c$"Неизвестная команда. {randomEmoji ()}
+
+        {s}"
+
+  let min = page * count + 1
+  let max = page * count + blocksCount
+
+  if min = max
+  then $"Блок № {min}"
+  else $"Блоки с № {min} по № {max}"
+  |> m
+  |> c
+
 module private Button =
   let cancel = "Отмена ❌"
   let exit = "Выход 🚪"
@@ -240,8 +273,10 @@ module private Button =
   let show = "Показать 👁"
   let prev = "⬅️"
   let next = "➡️"
-  let add = "Добавить ➕"
+  let add = "Добавить 📄"
+  let edit = "Редактировать 🗃"
   let back = "Назад 🚪"
+  let addNext = "Добавить ещё 📄"
 
 let private button text command : Button =
   { Text = text
@@ -253,7 +288,7 @@ let private button text command : Button =
     SwitchInlineQuery = None
     SwitchInlineQueryCurrentChat = None }
 
-let state getCourses user state = async {
+let state getCourses getBlocks user state = async {
   match state with
   | Inactive ->
     return String.Empty, None
@@ -272,7 +307,8 @@ let state getCourses user state = async {
       Some
         [ [ button Button.title Commands.title
             button Button.desc Commands.desc ]
-          [ button Button.add Commands.add ]
+          [ button Button.add Commands.add
+            button Button.edit Commands.edit  ]
           [ button Button.exit Commands.exit ] ]
 
   | EditingTitle (_, title, msg) ->
@@ -309,4 +345,20 @@ let state getCourses user state = async {
   | EditingBlock (_, _, index, title, msg) ->
     return
       editingBlockMsg index title msg,
-      Some [ [ button Button.back Commands.back ] ] }
+      Some
+        [ [ button Button.addNext Commands.next
+            button Button.back Commands.back ] ]
+
+  | ListingBlocks (courseId, page, count, msg) ->
+    let! blocks = getBlocks courseId page count
+
+    return
+      listingBlocksMsg page count (List.length blocks) msg,
+      Some
+        [ for (id, title) in blocks do
+            yield [ button title $"{Commands.edit} {id}" ]
+
+          yield [ button Button.prev Commands.prev
+                  button Button.next Commands.next ]
+
+          yield [ button Button.back Commands.back ] ] }

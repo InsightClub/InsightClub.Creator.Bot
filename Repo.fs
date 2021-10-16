@@ -137,7 +137,7 @@ let updateDesc connection courseId courseDesc =
   |> Async.AwaitTask
   |> Async.Ignore
 
-let checkAnyCourse connection creatorId =
+let checkAnyCourses connection creatorId =
   connection
   |> Sql.existingConnection
   |> Sql.query
@@ -195,13 +195,23 @@ let tryCreateBlock connection courseId blockIndex blockTitle = async {
       connection
       |> Sql.existingConnection
       |> Sql.query
-        "UPDATE blocks
-        SET block_index = block_index + 1
-        WHERE course_id = @course_id
-        AND block_index >= @block_index"
-      |> Sql.parameters
-        [ "course_id", Sql.int courseId
-          "block_index", Sql.int blockIndex ]
+        $"DO $$
+          DECLARE
+            c CURSOR FOR
+              SELECT block_id
+              FROM blocks
+              WHERE course_id = {courseId}
+              AND block_index >= {blockIndex}
+              ORDER BY block_index DESC
+              FOR UPDATE;
+          BEGIN
+            FOR row IN c LOOP
+              UPDATE blocks
+              SET block_index = block_index + 1
+              WHERE CURRENT OF c;
+            END LOOP;
+          END
+        $$"
       |> Sql.executeNonQueryAsync
       |> Async.AwaitTask
       |> Async.Ignore
@@ -273,3 +283,64 @@ let addContent connection blockId content contentType =
   |> Sql.executeNonQueryAsync
   |> Async.AwaitTask
   |> Async.Ignore
+
+let getBlockInfo connection blockId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT block_index, block_title
+    FROM blocks
+    WHERE block_id = @block_id"
+  |> Sql.parameters
+    [ "block_id", Sql.int blockId ]
+  |> Sql.executeRowAsync
+    ( fun read ->
+        read.int "block_index",
+        read.string "block_title" )
+  |> Async.AwaitTask
+
+let getBlocksCount connection courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT COUNT(*) as count
+    FROM blocks
+    WHERE course_id = @course_id"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.int "count")
+  |> Async.AwaitTask
+
+let checkAnyBlocks connection courseId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT EXISTS(
+      SELECT 1
+      FROM blocks
+      WHERE course_id = @course_id
+    ) as any"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId ]
+  |> Sql.executeRowAsync (fun read -> read.bool "any")
+  |> Async.AwaitTask
+
+let getBlocks connection courseId page count =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT block_id, block_title
+    FROM blocks
+    WHERE course_id = @course_id
+    ORDER BY block_index
+    LIMIT @limit
+    OFFSET @offset"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId
+      "limit", Sql.int count
+      "offset", Sql.int (page * count) ]
+  |> Sql.executeAsync
+    ( fun read ->
+        read.int "block_id",
+        read.string "block_title" )
+  |> Async.AwaitTask

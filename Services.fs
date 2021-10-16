@@ -36,9 +36,9 @@ let get connection creatorId =
 
     return! callback () }
 
-  let checkAnyCourse callback = async {
+  let checkAnyCourses callback = async {
     let! any =
-      Repo.checkAnyCourse connection creatorId
+      Repo.checkAnyCourses connection creatorId
 
     return! callback any }
 
@@ -75,14 +75,35 @@ let get connection creatorId =
 
     return! callback () }
 
+  let getBlockInfo blockId callback = async {
+    let! info =
+      Repo.getBlockInfo connection blockId
+
+    return! callback info }
+
+  let getBlocksCount courseId callback = async {
+    let! count =
+      Repo.getBlocksCount connection courseId
+
+    return! callback count }
+
+  let checkAnyBlocks courseId callback = async {
+    let! any =
+      Repo.checkAnyBlocks connection courseId
+
+    return! callback any }
+
   { callback = callback
     tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
     getCourseTitle = getCourseTitle
     getCourseDesc = getCourseDesc
     updateDesc = updateDesc
-    checkAnyCourse = checkAnyCourse
+    checkAnyCourses = checkAnyCourses
     getCoursesCount = getCoursesCount
     tryCreateBlock = tryCreateBlock
     getLastBlockIndex = getLastBlockIndex
-    addContent = addContent }
+    addContent = addContent
+    getBlockInfo = getBlockInfo
+    getBlocksCount = getBlocksCount
+    checkAnyBlocks = checkAnyBlocks }

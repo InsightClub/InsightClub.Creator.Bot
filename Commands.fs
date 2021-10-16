@@ -121,6 +121,8 @@ let onMessage message : BotCommands<unit> =
     | VideoNote fileId -> Some <| EditingBlock.AddContent (VideoNote fileId)
     | _                -> None
 
+  let getListingBlocks () = None
+
   { getInactive = getInactive
     getIdle = getIdle
     getCreatingCourse = getCreatingCourse
@@ -129,7 +131,8 @@ let onMessage message : BotCommands<unit> =
     getEditingDesc = getEditingDesc
     getListingCourses = getListingCourses
     getCreatingBlock = getCreatingBlock
-    getEditingBlock = getEditingBlock }
+    getEditingBlock = getEditingBlock
+    getListingBlocks = getListingBlocks }
 
 let onQuery query =
   let getInactive () = None
@@ -147,6 +150,7 @@ let onQuery query =
     | CommandQ desc  -> Some EditingCourse.EditDesc
     | CommandQ exit  -> Some EditingCourse.Exit
     | CommandQ add   -> Some EditingCourse.AddBlock
+    | CommandQ edit  -> Some <| EditingCourse.EditBlock 5
     | _              -> None
 
   let getEditingTitle () =
@@ -179,6 +183,14 @@ let onQuery query =
     | CommandQ next -> Some EditingBlock.CreateNext
     | _             -> None
 
+  let getListingBlocks () =
+    match query with
+    | ParamQ edit id -> Some <| ListingBlocks.Select id
+    | CommandQ prev  -> Some <| ListingBlocks.Prev QueryEffect.InformMin
+    | CommandQ next  -> Some <| ListingBlocks.Next QueryEffect.InformMax
+    | CommandQ back  -> Some ListingBlocks.Back
+    | _              -> None
+
   { getInactive = getInactive
     getIdle = getIdle
     getCreatingCourse = getCreatingCourse
@@ -187,4 +199,5 @@ let onQuery query =
     getEditingDesc = getEditingDesc
     getListingCourses = getListingCourses
     getCreatingBlock = getCreatingBlock
-    getEditingBlock = getEditingBlock }
+    getEditingBlock = getEditingBlock
+    getListingBlocks = getListingBlocks }
