@@ -114,7 +114,8 @@ module CreatingBlock =
 module EditingBlock =
   type Command =
     | Back
-    | CreateNext
+    | InsertBefore
+    | InsertAfter
     | AddContent of Content
 
   type Msg =
@@ -368,7 +369,10 @@ let private updateEditingBlock
 | Some EditingBlock.Back ->
   callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
-| Some EditingBlock.CreateNext ->
+| Some EditingBlock.InsertBefore ->
+  callback (CreatingBlock (courseId, index - 1, CreatingBlock.Started)) None
+
+| Some EditingBlock.InsertAfter ->
   callback (CreatingBlock (courseId, index, CreatingBlock.Started)) None
 
 | Some (EditingBlock.AddContent content) ->
@@ -376,11 +380,11 @@ let private updateEditingBlock
     fun () ->
       callback
         ( EditingBlock
-        ( courseId,
-          blockId,
-          index,
-          title,
-          EditingBlock.ContentAdded content) )
+            ( courseId,
+              blockId,
+              index,
+              title,
+              EditingBlock.ContentAdded content) )
         None
 
 | None ->

@@ -276,7 +276,8 @@ module private Button =
   let add = "Добавить 📄"
   let edit = "Редактировать 🗃"
   let back = "Назад 🚪"
-  let addNext = "Добавить ещё 📄"
+  let before = "Вставить до 📄"
+  let after = "Вставить после 📄"
 
 let private button text command : Button =
   { Text = text
@@ -346,8 +347,9 @@ let state getCourses getBlocks user state = async {
     return
       editingBlockMsg index title msg,
       Some
-        [ [ button Button.addNext Commands.next
-            button Button.back Commands.back ] ]
+        [ [ button Button.before Commands.before
+            button Button.after  Commands.after  ]
+          [ button Button.back   Commands.back   ] ]
 
   | ListingBlocks (courseId, page, count, msg) ->
     let! blocks = getBlocks courseId page count

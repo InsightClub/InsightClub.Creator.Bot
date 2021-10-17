@@ -26,6 +26,8 @@ let prev = "/prev"
 let next = "/next"
 let add = "/add"
 let back = "/back"
+let before = "/before"
+let after = "/after"
 
 let private (|Command|_|) command = function
   | { Message.Text = Some text }
@@ -179,9 +181,10 @@ let onQuery query =
 
   let getEditingBlock () =
     match query with
-    | CommandQ back -> Some EditingBlock.Back
-    | CommandQ next -> Some EditingBlock.CreateNext
-    | _             -> None
+    | CommandQ back   -> Some EditingBlock.Back
+    | CommandQ before -> Some EditingBlock.InsertBefore
+    | CommandQ after  -> Some EditingBlock.InsertAfter
+    | _               -> None
 
   let getListingBlocks () =
     match query with
