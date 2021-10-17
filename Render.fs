@@ -357,8 +357,11 @@ let state getCourses getBlocks user state = async {
     return
       listingBlocksMsg page count (List.length blocks) msg,
       Some
-        [ for (id, title) in blocks do
-            yield [ button title $"{Commands.edit} {id}" ]
+        [ for (i, (id, title)) in List.indexed blocks do
+            yield
+              [ button
+                  $"{page * count + i + 1}. {title}"
+                  $"{Commands.edit} {id}" ]
 
           yield [ button Button.prev Commands.prev
                   button Button.next Commands.next ]
