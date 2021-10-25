@@ -40,7 +40,7 @@ let private (|Text|_|) = function
 
 let private (|Photo|_|) = function
 | { Message.Photo = Some sizes } -> Some <| (Seq.head sizes).FileId
-| _                             -> None
+| _                              -> None
 
 let private (|Audio|_|) = function
 | { Message.Audio = Some audio } -> Some audio.FileId
