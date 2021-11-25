@@ -1,5 +1,5 @@
 [<AutoOpen>]
-module InsightClub.Creator.Bot.Helpers
+module InsightClub.Creator.Bot.Utility
 
 
 /// Always returns first value

@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Helpers.fs" />
+    <Compile Include="Utility.fs" />
     <Compile Include="Core.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Repo.fs" />
