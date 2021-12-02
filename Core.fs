@@ -146,7 +146,7 @@ type BotState =
   | EditingBlock of CourseId * BlockId * Index * BlockTitle * EditingBlock.Msg
   | ListingBlocks of CourseId * Page * Count * ListingBlocks.Msg
 
-type GetCommand<'Command> = unit -> Option<'Command>
+type GetCommand<'Command> = unit -> 'Command option
 
 type BotCommands<'Effect> =
   { getInactive: GetCommand<Inactive.Command>
