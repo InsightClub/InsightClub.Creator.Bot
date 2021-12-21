@@ -18,7 +18,7 @@ let randomEmoji () =
 
   emojis.[ random.Next(emojis.Length) ]
 
-let commands =
+let private commands =
   c$"{Commands.new'} - Создать новый курс ⚡️
     {Commands.edit} - Редактировать существующий курс 📝
     {Commands.help} - Получить помощь (Вы сейчас здесь) 👀"
