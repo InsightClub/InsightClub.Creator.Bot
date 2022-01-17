@@ -29,6 +29,9 @@ let back = "/back"
 let before = "/before"
 let after = "/after"
 
+let private getBiggest =
+  Seq.maxBy (fun (s: Types.PhotoSize) -> s.Width)
+
 let private (|Command|_|) command = function
   | { Message.Text = Some text }
     when text = command -> Some ()
@@ -39,7 +42,7 @@ let private (|Text|_|) = function
   | _                            -> None
 
 let private (|Photo|_|) = function
-| { Message.Photo = Some sizes } -> Some <| (Seq.head sizes).FileId
+| { Message.Photo = Some sizes } -> Some <| (getBiggest sizes).FileId
 | _                              -> None
 
 let private (|Audio|_|) = function
