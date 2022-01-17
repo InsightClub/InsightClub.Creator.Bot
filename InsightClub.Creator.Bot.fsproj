@@ -18,6 +18,7 @@
     <Compile Include="Core.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Repo.fs" />
+    <Compile Include="Storage.fs" />
     <Compile Include="Services.fs" />
     <Compile Include="State.fs" />
     <Compile Include="Commands.fs" />

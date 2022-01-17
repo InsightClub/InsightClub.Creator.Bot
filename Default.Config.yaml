@@ -10,3 +10,5 @@ Db:
   Username: ""
   Password: ""
   Port: 5432
+Storage:
+  Path: ""

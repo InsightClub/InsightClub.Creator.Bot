@@ -70,7 +70,7 @@ let renderQueryEffect = function
 | None ->
   None, None
 
-let onUpdate getConnection ctx = async {
+let onUpdate getConnection storagePath ctx = async {
   use connection = getConnection ()
   let config = ctx.Config
 
@@ -79,7 +79,7 @@ let onUpdate getConnection ctx = async {
   | { Message = Some ({ From = Some user } as message) } ->
     let! creatorId, lastId, state = State.get connection user.Id
 
-    let services = Services.get connection creatorId
+    let services = Services.get connection config storagePath creatorId
     let commands = Commands.onMessage message
     let! state, _ = Core.update services commands state
 
@@ -106,7 +106,7 @@ let onUpdate getConnection ctx = async {
   | { CallbackQuery = Some ({ From = user; Message = Some message } as query) } ->
     let! creatorId, _, state = State.get connection user.Id
 
-    let services = Services.get connection creatorId
+    let services = Services.get connection config storagePath creatorId
     let commands = Commands.onQuery query
     let! state, effect = Core.update services commands state
 

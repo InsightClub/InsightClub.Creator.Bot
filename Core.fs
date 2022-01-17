@@ -21,6 +21,11 @@ type Content =
   | Voice of FileId
   | Document of FileId
   | VideoNote of FileId
+  with
+    member this.IsFile =
+      match this with
+      | Text _ -> false
+      | _      -> true
 
 module Inactive =
   type Command = Start

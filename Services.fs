@@ -1,9 +1,11 @@
 module InsightClub.Creator.Bot.Services
 
 open Core
+open Funogram
+open Funogram.Telegram
 
 
-let get connection creatorId =
+let get connection config storagePath creatorId =
   let callback state effect =
     Async.singleton (state, effect)
 
@@ -61,17 +63,34 @@ let get connection creatorId =
     return! callback lastIndex }
 
   let addContent blockId content callback = async {
-    let content, contentType =
+    let innerContent, contentType =
       match content with
-      | Text text -> text, "text"
-      | Photo fileId -> fileId, "photo"
-      | Audio fileId -> fileId, "audio"
-      | Video fileId -> fileId, "video"
-      | Voice fileId -> fileId, "voice"
-      | Document fileId -> fileId, "document"
+      | Text text        -> text, "text"
+      | Photo fileId     -> fileId, "photo"
+      | Audio fileId     -> fileId, "audio"
+      | Video fileId     -> fileId, "video"
+      | Voice fileId     -> fileId, "voice"
+      | Document fileId  -> fileId, "document"
       | VideoNote fileId -> fileId, "video_note"
 
-    do! Repo.addContent connection blockId content contentType
+    do! Repo.addContent connection blockId innerContent contentType
+
+    if content.IsFile then
+      let! file =
+        Api.getFile innerContent
+        |> Api.api config
+
+      match file with
+      | Ok file ->
+        do!
+          Storage.saveFile
+            config.Token
+            file.FilePath.Value
+            storagePath
+            file.FileId
+
+      | Error e ->
+        failwith <| sprintf "Error getting file: %A" e
 
     return! callback () }
 
