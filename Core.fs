@@ -259,7 +259,7 @@ let private updateEditingCourse
   getLastBlockIndex courseId <|
     fun lastIndex ->
       callback
-        (CreatingBlock (courseId, lastIndex, CreatingBlock.Started))
+        (CreatingBlock (courseId, lastIndex + 1, CreatingBlock.Started))
         None
 
 | Some (EditingCourse.EditBlock count) ->
@@ -351,30 +351,30 @@ let private updateListingCourses callback getCoursesCount page count = function
   callback (ListingCourses (page, count, ListingCourses.Error)) None
 
 let private updateCreatingBlock
-  callback tryCreateBlock courseId lastIndex = function
+  callback tryCreateBlock courseId blockIndex = function
 | Some CreatingBlock.Cancel ->
   callback (EditingCourse (courseId, EditingCourse.NewBlockCanceled)) None
 
 | Some (CreatingBlock.CreateBlock title) ->
-  tryCreateBlock courseId (lastIndex + 1) title <|
+  tryCreateBlock courseId blockIndex title <|
     function
     | Some blockId ->
       callback
         ( EditingBlock
             ( courseId,
               blockId,
-              lastIndex + 1,
+              blockIndex,
               title,
               EditingBlock.Started ) )
         None
 
     | None ->
       callback
-        (CreatingBlock (courseId, lastIndex, CreatingBlock.TitleReserved))
+        (CreatingBlock (courseId, blockIndex, CreatingBlock.TitleReserved))
         None
 
 | None ->
-  callback (CreatingBlock (courseId, lastIndex, CreatingBlock.Error)) None
+  callback (CreatingBlock (courseId, blockIndex, CreatingBlock.Error)) None
 
 let private updateEditingBlock
   callback
@@ -384,7 +384,7 @@ let private updateEditingBlock
   getBlocksCount
   courseId
   blockId
-  index
+  blockIndex
   title
   = function
 | Some EditingBlock.Back ->
@@ -395,35 +395,39 @@ let private updateEditingBlock
     ( EditingBlock
         ( courseId,
           blockId,
-          index,
+          blockIndex,
           title,
           EditingBlock.Started) )
     None
 
 | Some EditingBlock.InsertBefore ->
-  callback (CreatingBlock (courseId, index - 1, CreatingBlock.Started)) None
+  callback
+    (CreatingBlock (courseId, blockIndex, CreatingBlock.Started))
+    None
 
 | Some EditingBlock.InsertAfter ->
-  callback (CreatingBlock (courseId, index, CreatingBlock.Started)) None
+  callback
+    (CreatingBlock (courseId, blockIndex + 1, CreatingBlock.Started))
+    None
 
 | Some (EditingBlock.Prev informMin) ->
-  if index = 1 then
+  if blockIndex = 0 then
     callback
       ( EditingBlock
           ( courseId,
             blockId,
-            index,
+            blockIndex,
             title,
             EditingBlock.Started ) )
       (Some informMin)
   else
-    getBlockInfoByIndex courseId (index - 1) <|
+    getBlockInfoByIndex courseId (blockIndex - 1) <|
       fun (blockId, title) ->
         callback
           ( EditingBlock
               ( courseId,
                 blockId,
-                index - 1,
+                blockIndex - 1,
                 title,
                 EditingBlock.Started ) )
           None
@@ -431,23 +435,23 @@ let private updateEditingBlock
 | Some (EditingBlock.Next informMax) ->
   getBlocksCount courseId <|
     fun count ->
-      if index = count then
+      if blockIndex = count - 1 then
         callback
           ( EditingBlock
               ( courseId,
                 blockId,
-                index,
+                blockIndex,
                 title,
                 EditingBlock.Started ) )
           (Some informMax)
       else
-        getBlockInfoByIndex courseId (index + 1) <|
+        getBlockInfoByIndex courseId (blockIndex + 1) <|
           fun (blockId, title) ->
             callback
               ( EditingBlock
                   ( courseId,
                     blockId,
-                    index + 1,
+                    blockIndex + 1,
                     title,
                     EditingBlock.Started ) )
               None
@@ -459,7 +463,7 @@ let private updateEditingBlock
         ( EditingBlock
             ( courseId,
               blockId,
-              index,
+              blockIndex,
               title,
               EditingBlock.Started ) )
         (Some <| show contents)
@@ -471,7 +475,7 @@ let private updateEditingBlock
         ( EditingBlock
             ( courseId,
               blockId,
-              index,
+              blockIndex,
               title,
               EditingBlock.ContentAdded content ) )
         None
@@ -481,7 +485,7 @@ let private updateEditingBlock
     ( EditingBlock
         ( courseId,
           blockId,
-          index,
+          blockIndex,
           title,
           EditingBlock.Error ) )
     None
