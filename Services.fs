@@ -112,6 +112,26 @@ let get connection config storagePath creatorId =
 
     return! callback any }
 
+  let getBlockContents blockId callback = async {
+    let! contents =
+      Repo.getBlockContents connection blockId
+
+    let contents =
+      contents
+      |> List.map
+        ( function
+          | text, "text"         -> Text text
+          | fileId, "photo"      -> Photo fileId
+          | fileId, "audio"      -> Audio fileId
+          | fileId, "video"      -> Video fileId
+          | fileId, "voice"      -> Voice fileId
+          | fileId, "document"   -> Document fileId
+          | fileId, "video_note" -> VideoNote fileId
+          | fileId, contentType  ->
+            failwith $"Unknown content type: {contentType}! FileId: {fileId}" )
+
+    return! callback contents }
+
   { callback = callback
     tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
@@ -125,4 +145,5 @@ let get connection config storagePath creatorId =
     addContent = addContent
     getBlockInfo = getBlockInfo
     getBlocksCount = getBlocksCount
-    checkAnyBlocks = checkAnyBlocks }
+    checkAnyBlocks = checkAnyBlocks
+    getBlockContents = getBlockContents }

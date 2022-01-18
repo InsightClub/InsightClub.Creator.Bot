@@ -2,6 +2,7 @@ module InsightClub.Creator.Bot.Api
 
 open System
 open Funogram
+open Funogram.Types
 open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
@@ -56,19 +57,57 @@ let renderQueryEffect = function
 | Some (Commands.ShowDesc desc) ->
   let text =
     if desc = String.Empty
-    then $"У Вашего курса пока нет описания {Render.randomEmoji ()}"
-    else desc
+    then
+      [ Core.Text $"У Вашего курса пока нет описания {Render.randomEmoji ()}" ]
+    else
+      [ Core.Text desc ]
 
-  Some text, None
+  text, None
+
+| Some (Commands.ShowContent contents) ->
+  contents, None
 
 | Some Commands.InformMin ->
-  None, Some "Вы дошли до минимума"
+  [], Some "Вы дошли до минимума"
 
 | Some Commands.InformMax ->
-  None, Some "Вы дошли до максимума"
+  [], Some "Вы дошли до максимума"
 
 | None ->
-  None, None
+  [], None
+
+let sendContent userId storagePath =
+  let makeFile fileId =
+    FileToSend.File <| (fileId, Storage.getFile storagePath fileId)
+
+  function
+  | Core.Text text ->
+    Api.sendMessage userId text
+    :> IRequestBase<Message>
+
+  | Core.Photo fileId ->
+    Api.sendPhoto userId (makeFile fileId) ""
+    :> IRequestBase<Message>
+
+  | Core.Audio fileId ->
+    Api.sendAudio userId (makeFile fileId) "" None None
+    :> IRequestBase<Message>
+
+  | Core.Video fileId ->
+    Api.sendVideo userId (makeFile fileId) ""
+    :> IRequestBase<Message>
+
+  | Core.Voice fileId ->
+    Api.sendVoice userId (makeFile fileId) ""
+    :> IRequestBase<Message>
+
+  | Core.Document fileId ->
+    Api.sendDocument userId (makeFile fileId) ""
+    :> IRequestBase<Message>
+
+  | Core.VideoNote fileId ->
+    Api.sendVideoNote userId (makeFile fileId)
+    :> IRequestBase<Message>
 
 let onUpdate getConnection storagePath ctx = async {
   use connection = getConnection ()
@@ -110,7 +149,7 @@ let onUpdate getConnection storagePath ctx = async {
     let commands = Commands.onQuery query
     let! state, effect = Core.update services commands state
 
-    let effectText, queryAnswer = renderQueryEffect effect
+    let effectContents, queryAnswer = renderQueryEffect effect
 
     let getCourses = Repo.getCourses connection creatorId
     let getBlocks = Repo.getBlocks connection
@@ -119,25 +158,27 @@ let onUpdate getConnection storagePath ctx = async {
     do! answerCallbackQuery config query.Id queryAnswer
 
     let! lastId = async {
-      match effectText with
-      | Some effectText ->
+      match effectContents with
+      | [] ->
+        if text <> String.Empty then
+          do! editMessage config message.MessageId user.Id text keyboard
+          return Option.map (always message.MessageId) keyboard
+        else
+          return Some message.MessageId
+
+      | contents ->
         do! removeKeyboard config user.Id message.MessageId
 
         do!
-          sendMessage config user.Id effectText None
+          contents
+          |> List.map (sendContent user.Id storagePath >> Api.api config)
+          |> Async.Sequential
           |> Async.Ignore
 
         if text <> String.Empty then
           return! sendMessage config user.Id text keyboard
         else
-          return None
-
-      | None ->
-        if text <> String.Empty then
-          do! editMessage config message.MessageId user.Id text keyboard
-          return Option.map (always message.MessageId) keyboard
-        else
-          return Some message.MessageId }
+          return None }
 
     do! State.update connection creatorId lastId state
 

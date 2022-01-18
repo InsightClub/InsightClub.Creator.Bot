@@ -7,9 +7,11 @@ open Funogram.Telegram
 
 type Message = Types.Message
 type CallbackQuery = Types.CallbackQuery
+type PhotoSize = Types.PhotoSize
 
 type QueryEffect =
-  | ShowDesc of Core.CourseDesc
+  | ShowDesc of CourseDesc
+  | ShowContent of Content list
   | InformMin
   | InformMax
 
@@ -30,7 +32,7 @@ let before = "/before"
 let after = "/after"
 
 let private getBiggest =
-  Seq.maxBy (fun (s: Types.PhotoSize) -> s.Width)
+  Seq.maxBy (fun (s: PhotoSize) -> s.Width)
 
 let private (|Command|_|) command = function
   | { Message.Text = Some text }
@@ -187,6 +189,7 @@ let onQuery query =
     | CommandQ back   -> Some EditingBlock.Back
     | CommandQ before -> Some EditingBlock.InsertBefore
     | CommandQ after  -> Some EditingBlock.InsertAfter
+    | CommandQ show   -> Some <| EditingBlock.Show QueryEffect.ShowContent
     | _               -> None
 
   let getListingBlocks () =

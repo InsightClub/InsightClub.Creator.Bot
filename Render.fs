@@ -28,7 +28,7 @@ let private idleMsg (user: User) = function
   let lastName =
     user.LastName
     |> Option.map ((+) " ")
-    |> Option.defaultValue ""
+    |> Option.defaultValue String.Empty
 
   c$"Добро пожаловать в InsightClub.Creator.Bot, {user.FirstName} \
     {lastName}! ✨ С помощью этого бота Вы можете конструировать свои \
@@ -358,6 +358,7 @@ let state getCourses getBlocks user state = async {
       editingBlockMsg title msg,
       Some
         [ [ button Button.before Commands.before
+            button Button.show Commands.show
             button Button.after  Commands.after  ]
           [ button Button.back   Commands.back   ] ]
 

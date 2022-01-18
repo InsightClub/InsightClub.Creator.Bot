@@ -11,3 +11,7 @@ let saveFile botToken filePath storagePath fileId =
     Path.Combine([| storagePath; fileId |])
   )
   |> Async.AwaitTask
+
+let getFile storagePath fileId =
+  File.OpenRead(Path.Combine([| storagePath; fileId |]))
+  :> Stream

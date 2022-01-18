@@ -344,3 +344,18 @@ let getBlocks connection courseId page count =
         read.int "block_id",
         read.string "block_title" )
   |> Async.AwaitTask
+
+let getBlockContents connection blockId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT content, content_type
+    FROM contents
+    WHERE block_id = @block_id"
+  |> Sql.parameters
+    [ "block_id", Sql.int blockId ]
+  |> Sql.executeAsync
+    ( fun read ->
+        read.string "content",
+        read.string "content_type" )
+  |> Async.AwaitTask

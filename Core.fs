@@ -117,11 +117,12 @@ module CreatingBlock =
     | Error
 
 module EditingBlock =
-  type Command =
+  type Command<'Effect> =
     | Back
     | InsertBefore
     | InsertAfter
     | AddContent of Content
+    | Show of (Content list -> 'Effect)
 
   type Msg =
     | Started
@@ -162,7 +163,7 @@ type BotCommands<'Effect> =
     getEditingDesc: GetCommand<EditingDesc.Command<'Effect>>
     getListingCourses: GetCommand<ListingCourses.Command<'Effect>>
     getCreatingBlock: GetCommand<CreatingBlock.Command>
-    getEditingBlock: GetCommand<EditingBlock.Command>
+    getEditingBlock: GetCommand<EditingBlock.Command<'Effect>>
     getListingBlocks: GetCommand<ListingBlocks.Command<'Effect>> }
 
 type Service<'Param, 'Result> = ('Param -> 'Result) -> 'Result
@@ -183,7 +184,8 @@ type BotServices<'Effect, 'Result> =
     addContent: BlockId -> Content -> Service<'Result>
     getBlockInfo: BlockId -> Service<Index * BlockTitle, 'Result>
     getBlocksCount: CourseId -> Service<Count, 'Result>
-    checkAnyBlocks: CourseId -> Service<bool, 'Result> }
+    checkAnyBlocks: CourseId -> Service<bool, 'Result>
+    getBlockContents: BlockId -> Service<Content list, 'Result> }
 
 // Values
 /// Initial state
@@ -370,7 +372,7 @@ let private updateCreatingBlock
   callback (CreatingBlock (courseId, lastIndex, CreatingBlock.Error)) None
 
 let private updateEditingBlock
-  callback addContent courseId blockId index title = function
+  callback addContent getBlockContents courseId blockId index title = function
 | Some EditingBlock.Back ->
   callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
@@ -391,6 +393,18 @@ let private updateEditingBlock
               title,
               EditingBlock.ContentAdded content) )
         None
+
+| Some (EditingBlock.Show show) ->
+  getBlockContents blockId <|
+    fun contents ->
+      callback
+        ( EditingBlock
+            ( courseId,
+              blockId,
+              index,
+              title,
+              EditingBlock.Msg.Started))
+        (Some <| show contents)
 
 | None ->
   callback
@@ -500,7 +514,8 @@ let update services commands =
 
   | EditingBlock (courseId, blockId, index, title, _) ->
     commands.getEditingBlock ()
-    |> updateEditingBlock s.callback s.addContent courseId blockId index title
+    |> updateEditingBlock
+      s.callback s.addContent s.getBlockContents courseId blockId index title
 
   | ListingBlocks (courseId, page, count, _) ->
     commands.getListingBlocks ()
