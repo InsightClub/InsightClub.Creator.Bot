@@ -132,6 +132,12 @@ let get connection config storagePath creatorId =
 
     return! callback info }
 
+  let cleanBlock blockId callback = async {
+    let! count =
+      Repo.cleanBlock connection blockId
+
+    return! callback (count > 0) }
+
   { callback = callback
     tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
@@ -146,4 +152,5 @@ let get connection config storagePath creatorId =
     getBlocksCount = getBlocksCount
     checkAnyBlocks = checkAnyBlocks
     getBlockContents = getBlockContents
-    getBlockInfoByIndex = getBlockInfoByIndex }
+    getBlockInfoByIndex = getBlockInfoByIndex
+    cleanBlock = cleanBlock }

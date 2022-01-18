@@ -14,6 +14,7 @@ type QueryEffect =
   | ShowContent of Content list
   | InformMin
   | InformMax
+  | InformEmpty
 
 let start = "/start"
 let help = "/help"
@@ -31,6 +32,7 @@ let back = "/back"
 let before = "/before"
 let after = "/after"
 let nothing = "/nothing"
+let clean = "/clean"
 
 let private getBiggest =
   Seq.maxBy (fun (s: PhotoSize) -> s.Width)
@@ -193,6 +195,7 @@ let onQuery query =
     | CommandQ after   -> Some EditingBlock.InsertAfter
     | CommandQ prev    -> Some <| EditingBlock.Prev QueryEffect.InformMin
     | CommandQ next    -> Some <| EditingBlock.Next QueryEffect.InformMax
+    | CommandQ clean   -> Some <| EditingBlock.Clean QueryEffect.InformEmpty
     | CommandQ show    -> Some <| EditingBlock.Show QueryEffect.ShowContent
     | _                -> None
 

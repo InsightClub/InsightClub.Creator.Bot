@@ -360,3 +360,14 @@ let getBlockInfoByIndex connection courseId blockIndex =
         read.int "block_id",
         read.string "block_title" )
   |> Async.AwaitTask
+
+let cleanBlock connection blockId =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "DELETE FROM contents
+    WHERE block_id = @block_id"
+  |> Sql.parameters
+    [ "block_id", Sql.int blockId ]
+  |> Sql.executeNonQueryAsync
+  |> Async.AwaitTask

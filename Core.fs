@@ -87,7 +87,7 @@ module EditingTitle =
 
 module EditingDesc =
   type Command<'Effect> =
-    | Show of (CourseDesc -> 'Effect)
+    | Show of showDesc: (CourseDesc -> 'Effect)
     | Cancel
     | SetDesc of CourseDesc
 
@@ -98,8 +98,8 @@ module EditingDesc =
 module ListingCourses =
   type Command<'Effect> =
     | Select of CourseId
-    | Prev of 'Effect
-    | Next of 'Effect
+    | Prev of informMin: 'Effect
+    | Next of informMax: 'Effect
     | Exit
 
   type Msg =
@@ -122,21 +122,23 @@ module EditingBlock =
     | Nothing
     | InsertBefore
     | InsertAfter
-    | Prev of 'Effect
-    | Next of 'Effect
-    | Show of (Content list -> 'Effect)
+    | Prev of informMin: 'Effect
+    | Next of informMax: 'Effect
+    | Show of showContent: (Content list -> 'Effect)
+    | Clean of informEmpty: 'Effect
     | AddContent of Content
 
   type Msg =
     | Started
     | ContentAdded of Content
+    | Cleaned
     | Error
 
 module ListingBlocks =
   type Command<'Effect> =
     | Select of BlockId
-    | Prev of 'Effect
-    | Next of 'Effect
+    | Prev of informMin: 'Effect
+    | Next of informMax: 'Effect
     | Back
 
   type Msg =
@@ -189,7 +191,8 @@ type BotServices<'Effect, 'Result> =
     checkAnyBlocks: CourseId -> Service<bool, 'Result>
     getBlockContents: BlockId -> Service<Content list, 'Result>
     getBlockInfoByIndex:
-      CourseId -> Index -> Service<BlockId * BlockTitle, 'Result> }
+      CourseId -> Index -> Service<BlockId * BlockTitle, 'Result>
+    cleanBlock: BlockId -> Service<bool, 'Result> }
 
 // Values
 /// Initial state
@@ -381,6 +384,7 @@ let private updateEditingBlock
   getBlockContents
   getBlockInfoByIndex
   getBlocksCount
+  cleanBlock
   courseId
   blockId
   blockIndex
@@ -466,6 +470,27 @@ let private updateEditingBlock
               title,
               EditingBlock.Started ) )
         (Some <| show contents)
+| Some (EditingBlock.Clean informEmpty) ->
+  cleanBlock blockId <|
+    fun cleaned ->
+      if cleaned then
+        callback
+          ( EditingBlock
+              ( courseId,
+                blockId,
+                blockIndex,
+                title,
+                EditingBlock.Cleaned ) )
+          None
+      else
+        callback
+          ( EditingBlock
+              ( courseId,
+                blockId,
+                blockIndex,
+                title,
+                EditingBlock.Cleaned ) )
+          (Some <| informEmpty)
 
 | Some (EditingBlock.AddContent content) ->
   addContent blockId content <|
@@ -593,6 +618,7 @@ let update services commands =
       s.getBlockContents
       s.getBlockInfoByIndex
       s.getBlocksCount
+      s.cleanBlock
       courseId
       blockId
       index

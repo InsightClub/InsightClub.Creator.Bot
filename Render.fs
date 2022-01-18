@@ -246,6 +246,15 @@ let private editingBlockMsg title = function
   Отправьте ещё текст, фото, аудио, видео, голос, документ \
   или короткое видео, чтоб добавить его в конец блока."
 
+| EditingBlock.Cleaned ->
+  c$"{title}
+
+    Блок очищен.
+
+    Режим редактирования блока ✨
+    Отправьте текст, фото, аудио, видео, голос, документ \
+    или короткое видео, чтоб добавить его в конец блока."
+
 | EditingBlock.Error ->
   c$"{title}
 
@@ -292,6 +301,7 @@ module private Button =
   let move = "--- Перейти к блоку ---"
   let movePrev = "Предыдущий ⬅️"
   let moveNext = "Следующий ➡️"
+  let clean = "Очистить 🗑"
 
 let private button text command : Button =
   { Text = text
@@ -367,7 +377,8 @@ let state getCourses getBlocks user state = async {
           [ button Button.move      Commands.nothing ]
           [ button Button.movePrev  Commands.prev
             button Button.moveNext  Commands.next    ]
-          [ button Button.show      Commands.show    ]
+          [ button Button.show      Commands.show
+            button Button.clean     Commands.clean   ]
           [ button Button.back      Commands.back    ] ]
 
   | ListingBlocks (courseId, page, count, msg) ->
@@ -404,10 +415,13 @@ let queryEffect = function
   contents, None
 
 | Some Commands.InformMin ->
-  [ ], Some "Вы дошли до минимума"
+  [ ], Some "Вы дошли до начала."
 
 | Some Commands.InformMax ->
-  [ ], Some "Вы дошли до максимума"
+  [ ], Some "Вы дошли до конца."
+
+| Some Commands.InformEmpty ->
+  [ ], Some "Очищение не требуется. Блок пуст."
 
 | None ->
   [ ], None
