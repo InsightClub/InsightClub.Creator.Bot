@@ -359,3 +359,20 @@ let getBlockContents connection blockId =
         read.string "content",
         read.string "content_type" )
   |> Async.AwaitTask
+
+let getBlockInfoByIndex connection courseId blockIndex =
+  connection
+  |> Sql.existingConnection
+  |> Sql.query
+    "SELECT block_id, block_title
+    FROM blocks
+    WHERE course_id = @course_id
+    AND block_index = @block_index"
+  |> Sql.parameters
+    [ "course_id", Sql.int courseId
+      "block_index", Sql.int blockIndex ]
+  |> Sql.executeRowAsync
+    ( fun read ->
+        read.int "block_id",
+        read.string "block_title" )
+  |> Async.AwaitTask

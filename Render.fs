@@ -289,6 +289,9 @@ module private Button =
   let before = "До ⬅️"
   let after = "После ➡️"
   let insert = "--- Вставить блок ---"
+  let move = "--- Перейти к блоку ---"
+  let movePrev = "Предыдущий ⬅️"
+  let moveNext = "Следующий ➡️"
 
 let private button text command : Button =
   { Text = text
@@ -358,11 +361,14 @@ let state getCourses getBlocks user state = async {
     return
       editingBlockMsg title msg,
       Some
-        [ [ button Button.insert Commands.nothing ]
-          [ button Button.before Commands.before
-            button Button.after  Commands.after  ]
-          [ button Button.show   Commands.show   ]
-          [ button Button.back   Commands.back   ] ]
+        [ [ button Button.insert    Commands.nothing ]
+          [ button Button.before    Commands.before
+            button Button.after     Commands.after   ]
+          [ button Button.move      Commands.nothing ]
+          [ button Button.movePrev  Commands.prev
+            button Button.moveNext  Commands.next    ]
+          [ button Button.show      Commands.show    ]
+          [ button Button.back      Commands.back    ] ]
 
   | ListingBlocks (courseId, page, count, msg) ->
     let! blocks = getBlocks courseId page count

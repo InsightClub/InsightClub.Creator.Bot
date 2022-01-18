@@ -188,10 +188,12 @@ let onQuery query =
   let getEditingBlock () =
     match query with
     | CommandQ back    -> Some EditingBlock.Back
+    | CommandQ nothing -> Some EditingBlock.Nothing
     | CommandQ before  -> Some EditingBlock.InsertBefore
     | CommandQ after   -> Some EditingBlock.InsertAfter
+    | CommandQ prev    -> Some <| EditingBlock.Prev QueryEffect.InformMin
+    | CommandQ next    -> Some <| EditingBlock.Next QueryEffect.InformMax
     | CommandQ show    -> Some <| EditingBlock.Show QueryEffect.ShowContent
-    | CommandQ nothing -> Some EditingBlock.Nothing
     | _                -> None
 
   let getListingBlocks () =
