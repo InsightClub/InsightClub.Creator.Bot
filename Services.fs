@@ -5,6 +5,17 @@ open Funogram
 open Funogram.Telegram
 
 
+let private mapContent = function
+| text, "text"         -> Text text
+| fileId, "photo"      -> Photo fileId
+| fileId, "audio"      -> Audio fileId
+| fileId, "video"      -> Video fileId
+| fileId, "voice"      -> Voice fileId
+| fileId, "document"   -> Document fileId
+| fileId, "video_note" -> VideoNote fileId
+| fileId, contentType  ->
+  failwith $"Unknown content type: {contentType}! FileId: {fileId}"
+
 let get connection config storagePath creatorId =
   let callback state effect =
     Async.singleton (state, effect)
@@ -110,19 +121,7 @@ let get connection config storagePath creatorId =
     let! contents =
       Repo.getBlockContents connection blockId
 
-    let contents =
-      contents
-      |> List.map
-        ( function
-          | text, "text"         -> Text text
-          | fileId, "photo"      -> Photo fileId
-          | fileId, "audio"      -> Audio fileId
-          | fileId, "video"      -> Video fileId
-          | fileId, "voice"      -> Voice fileId
-          | fileId, "document"   -> Document fileId
-          | fileId, "video_note" -> VideoNote fileId
-          | fileId, contentType  ->
-            failwith $"Unknown content type: {contentType}! FileId: {fileId}" )
+    let contents = contents |> List.map mapContent
 
     return! callback contents }
 
@@ -133,6 +132,15 @@ let get connection config storagePath creatorId =
     return! callback info }
 
   let cleanBlock blockId callback = async {
+    let! contents =
+      Repo.getBlockContents connection blockId
+
+    contents
+    |> List.iter
+      ( fun (content, contentType) ->
+          if contentType <> "text" then
+            Storage.deleteFile storagePath content )
+
     let! count =
       Repo.cleanBlock connection blockId
 

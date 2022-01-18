@@ -15,3 +15,6 @@ let saveFile botToken filePath storagePath fileId =
 let getFile storagePath fileId =
   File.OpenRead(Path.Combine([| storagePath; fileId |]))
   :> Stream
+
+let deleteFile storagePath fileId =
+  File.Delete(Path.Combine([| storagePath; fileId |]))

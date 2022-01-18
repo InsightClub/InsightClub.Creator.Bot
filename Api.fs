@@ -2,7 +2,6 @@ module InsightClub.Creator.Bot.Api
 
 open System
 open Funogram
-open Funogram.Types
 open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Telegram.Types
