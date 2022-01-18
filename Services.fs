@@ -73,6 +73,8 @@ let get connection config storagePath creatorId =
       | Document fileId  -> fileId, "document"
       | VideoNote fileId -> fileId, "video_note"
 
+    do! Repo.addContent connection blockId innerContent contentType
+
     if content.IsFile then
       let! file =
         Api.getFile innerContent
@@ -80,14 +82,12 @@ let get connection config storagePath creatorId =
 
       match file with
       | Ok file ->
-        do!
-          Storage.saveFile
-            config.Token
-            file.FilePath.Value
-            storagePath
-            file.FileId
-
-        do! Repo.addContent connection blockId innerContent contentType
+        Storage.saveFile
+          config.Token
+          file.FilePath.Value
+          storagePath
+          file.FileId
+        |> Async.Start
 
       | Error e ->
         failwith <| sprintf "Error getting file: %A" e

@@ -286,8 +286,8 @@ module private Button =
   let add = "Добавить 📄"
   let edit = "Редактировать 🗃"
   let back = "Назад 🚪"
-  let before = "Вставить до 📄"
-  let after = "Вставить после 📄"
+  let before = "Вставить блок ⬅️"
+  let after = "Вставить блок ➡️"
 
 let private button text command : Button =
   { Text = text
@@ -317,10 +317,10 @@ let state getCourses getBlocks user state = async {
       editingCourseMsg msg,
       Some
         [ [ button Button.title Commands.title
-            button Button.desc Commands.desc ]
-          [ button Button.add Commands.add
-            button Button.edit Commands.edit  ]
-          [ button Button.exit Commands.exit ] ]
+            button Button.desc  Commands.desc ]
+          [ button Button.add   Commands.add
+            button Button.edit  Commands.edit ]
+          [ button Button.exit  Commands.exit ] ]
 
   | EditingTitle (_, title, msg) ->
     return
@@ -358,8 +358,8 @@ let state getCourses getBlocks user state = async {
       editingBlockMsg title msg,
       Some
         [ [ button Button.before Commands.before
-            button Button.show Commands.show
             button Button.after  Commands.after  ]
+          [ button Button.show   Commands.show   ]
           [ button Button.back   Commands.back   ] ]
 
   | ListingBlocks (courseId, page, count, msg) ->
@@ -378,3 +378,28 @@ let state getCourses getBlocks user state = async {
                   button Button.next Commands.next ]
 
           yield [ button Button.back Commands.back ] ] }
+
+let queryEffect = function
+| Some (Commands.ShowDesc "") ->
+  let text
+    = "У Вашего курса пока нет описания. Отправьте текст, чтоб добавить его."
+
+  [ ], Some text
+
+| Some (Commands.ShowDesc desc) ->
+  [ Core.Text desc ], None
+
+| Some (Commands.ShowContent [ ]) ->
+  [ ], Some "Этот блок пока что пуст. Добавьте контент."
+
+| Some (Commands.ShowContent contents) ->
+  contents, None
+
+| Some Commands.InformMin ->
+  [ ], Some "Вы дошли до минимума"
+
+| Some Commands.InformMax ->
+  [ ], Some "Вы дошли до максимума"
+
+| None ->
+  [ ], None

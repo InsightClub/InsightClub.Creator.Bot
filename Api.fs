@@ -53,29 +53,6 @@ let editMessage config messageId userId text keyboard = async {
     |> Async.StartChild
     |> Async.Ignore }
 
-let renderQueryEffect = function
-| Some (Commands.ShowDesc desc) ->
-  let text =
-    if desc = String.Empty
-    then
-      [ Core.Text $"У Вашего курса пока нет описания {Render.randomEmoji ()}" ]
-    else
-      [ Core.Text desc ]
-
-  text, None
-
-| Some (Commands.ShowContent contents) ->
-  contents, None
-
-| Some Commands.InformMin ->
-  [], Some "Вы дошли до минимума"
-
-| Some Commands.InformMax ->
-  [], Some "Вы дошли до максимума"
-
-| None ->
-  [], None
-
 let sendContent userId storagePath =
   let makeFile fileId =
     FileToSend.File <| (fileId, Storage.getFile storagePath fileId)
@@ -149,7 +126,7 @@ let onUpdate getConnection storagePath ctx = async {
     let commands = Commands.onQuery query
     let! state, effect = Core.update services commands state
 
-    let effectContents, queryAnswer = renderQueryEffect effect
+    let effectContents, queryAnswer = Render.queryEffect effect
 
     let getCourses = Repo.getCourses connection creatorId
     let getBlocks = Repo.getBlocks connection
@@ -159,7 +136,7 @@ let onUpdate getConnection storagePath ctx = async {
 
     let! lastId = async {
       match effectContents with
-      | [] ->
+      | [ ] ->
         if text <> String.Empty then
           do! editMessage config message.MessageId user.Id text keyboard
           return Option.map (always message.MessageId) keyboard

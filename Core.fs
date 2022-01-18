@@ -403,7 +403,7 @@ let private updateEditingBlock
               blockId,
               index,
               title,
-              EditingBlock.Msg.Started))
+              EditingBlock.Started))
         (Some <| show contents)
 
 | None ->
