@@ -243,22 +243,6 @@ let tryCreateBlock connection courseId blockIndex blockTitle = async {
       = PostgresErrorCodes.UniqueViolation ->
     return None }
 
-let getLastBlockIndex connection courseId =
-  connection
-  |> Sql.existingConnection
-  |> Sql.query
-    "SELECT COALESCE(
-      ( SELECT MAX(block_index)
-        FROM blocks
-        WHERE course_id = @course_id ),
-      0
-    ) as last_index"
-  |> Sql.parameters
-    [ "course_id", Sql.int courseId ]
-  |> Sql.executeRowAsync
-    ( fun read -> read.int "last_index" )
-  |> Async.AwaitTask
-
 let addContent connection blockId content contentType =
   connection
   |> Sql.existingConnection

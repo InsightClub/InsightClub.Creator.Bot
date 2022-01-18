@@ -183,7 +183,6 @@ type BotServices<'Effect, 'Result> =
     getCoursesCount: Service<Count, 'Result>
     tryCreateBlock:
       CourseId -> Index -> BlockTitle -> Service<BlockId option, 'Result>
-    getLastBlockIndex: CourseId -> Service<Index, 'Result>
     addContent: BlockId -> Content -> Service<'Result>
     getBlockInfo: BlockId -> Service<Index * BlockTitle, 'Result>
     getBlocksCount: CourseId -> Service<Count, 'Result>
@@ -241,7 +240,7 @@ let private updateCreatingCourse callback tryCreateCourse = function
   callback (CreatingCourse CreatingCourse.Error) None
 
 let private updateEditingCourse
-  callback getCourseTitle getLastBlockIndex checkAnyBlock courseId = function
+  callback getCourseTitle getBlocksCount checkAnyBlock courseId = function
 | Some EditingCourse.EditTitle ->
   getCourseTitle courseId <|
     fun courseTitle ->
@@ -256,10 +255,10 @@ let private updateEditingCourse
   callback (Idle Idle.ExitedEditing) None
 
 | Some EditingCourse.AddBlock ->
-  getLastBlockIndex courseId <|
-    fun lastIndex ->
+  getBlocksCount courseId <|
+    fun count ->
       callback
-        (CreatingBlock (courseId, lastIndex + 1, CreatingBlock.Started))
+        (CreatingBlock (courseId, count, CreatingBlock.Started))
         None
 
 | Some (EditingCourse.EditBlock count) ->
@@ -568,7 +567,7 @@ let update services commands =
   | EditingCourse (courseId, _) ->
     commands.getEditingCourse ()
     |> updateEditingCourse
-      s.callback s.getCourseTitle s.getLastBlockIndex s.checkAnyBlocks courseId
+      s.callback s.getCourseTitle s.getBlocksCount s.checkAnyBlocks courseId
 
   | EditingTitle (courseId, courseTitle, _) ->
     commands.getEditingTitle ()

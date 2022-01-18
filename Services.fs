@@ -56,12 +56,6 @@ let get connection config storagePath creatorId =
 
     return! callback blockId }
 
-  let getLastBlockIndex courseId callback = async {
-    let! lastIndex =
-      Repo.getLastBlockIndex connection courseId
-
-    return! callback lastIndex }
-
   let addContent blockId content callback = async {
     let innerContent, contentType =
       match content with
@@ -147,7 +141,6 @@ let get connection config storagePath creatorId =
     checkAnyCourses = checkAnyCourses
     getCoursesCount = getCoursesCount
     tryCreateBlock = tryCreateBlock
-    getLastBlockIndex = getLastBlockIndex
     addContent = addContent
     getBlockInfo = getBlockInfo
     getBlocksCount = getBlocksCount
