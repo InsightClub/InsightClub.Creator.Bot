@@ -123,6 +123,7 @@ module EditingBlock =
     | InsertAfter
     | AddContent of Content
     | Show of (Content list -> 'Effect)
+    | Nothing
 
   type Msg =
     | Started
@@ -405,6 +406,16 @@ let private updateEditingBlock
               title,
               EditingBlock.Started))
         (Some <| show contents)
+
+| Some EditingBlock.Nothing ->
+  callback
+    ( EditingBlock
+        ( courseId,
+          blockId,
+          index,
+          title,
+          EditingBlock.Started) )
+    None
 
 | None ->
   callback

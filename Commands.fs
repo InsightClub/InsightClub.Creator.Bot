@@ -30,6 +30,7 @@ let add = "/add"
 let back = "/back"
 let before = "/before"
 let after = "/after"
+let nothing = "/nothing"
 
 let private getBiggest =
   Seq.maxBy (fun (s: PhotoSize) -> s.Width)
@@ -186,11 +187,12 @@ let onQuery query =
 
   let getEditingBlock () =
     match query with
-    | CommandQ back   -> Some EditingBlock.Back
-    | CommandQ before -> Some EditingBlock.InsertBefore
-    | CommandQ after  -> Some EditingBlock.InsertAfter
-    | CommandQ show   -> Some <| EditingBlock.Show QueryEffect.ShowContent
-    | _               -> None
+    | CommandQ back    -> Some EditingBlock.Back
+    | CommandQ before  -> Some EditingBlock.InsertBefore
+    | CommandQ after   -> Some EditingBlock.InsertAfter
+    | CommandQ show    -> Some <| EditingBlock.Show QueryEffect.ShowContent
+    | CommandQ nothing -> Some EditingBlock.Nothing
+    | _                -> None
 
   let getListingBlocks () =
     match query with

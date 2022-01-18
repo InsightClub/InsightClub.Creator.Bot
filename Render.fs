@@ -286,8 +286,9 @@ module private Button =
   let add = "Добавить 📄"
   let edit = "Редактировать 🗃"
   let back = "Назад 🚪"
-  let before = "Вставить блок ⬅️"
-  let after = "Вставить блок ➡️"
+  let before = "До ⬅️"
+  let after = "После ➡️"
+  let insert = "--- Вставить блок ---"
 
 let private button text command : Button =
   { Text = text
@@ -357,7 +358,8 @@ let state getCourses getBlocks user state = async {
     return
       editingBlockMsg title msg,
       Some
-        [ [ button Button.before Commands.before
+        [ [ button Button.insert Commands.nothing ]
+          [ button Button.before Commands.before
             button Button.after  Commands.after  ]
           [ button Button.show   Commands.show   ]
           [ button Button.back   Commands.back   ] ]
