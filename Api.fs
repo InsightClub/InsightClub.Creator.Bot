@@ -53,38 +53,82 @@ let editMessage config messageId userId text keyboard = async {
     |> Async.StartChild
     |> Async.Ignore }
 
-let sendContent userId storagePath =
+let sendContent config userId storagePath content = async {
   let makeFile fileId =
     FileToSend.File <| (fileId, Storage.getFile storagePath fileId)
 
-  function
+  match content with
   | Core.Text text ->
-    Api.sendMessage userId text
-    :> IRequestBase<Message>
+    do!
+      Api.sendMessage userId text
+      |> Api.api config
+      |> Async.Ignore
 
   | Core.Photo fileId ->
-    Api.sendPhoto userId (makeFile fileId) ""
-    :> IRequestBase<Message>
+    do!
+      Api.sendChatAction userId ChatAction.UploadPhoto
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendPhoto userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
 
   | Core.Audio fileId ->
-    Api.sendAudio userId (makeFile fileId) "" None None
-    :> IRequestBase<Message>
+    do!
+      Api.sendChatAction userId ChatAction.UploadAudio
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendAudio userId (makeFile fileId) "" None None
+      |> Api.api config
+      |> Async.Ignore
 
   | Core.Video fileId ->
-    Api.sendVideo userId (makeFile fileId) ""
-    :> IRequestBase<Message>
+    do!
+      Api.sendChatAction userId ChatAction.UploadVideo
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendVideo userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
 
   | Core.Voice fileId ->
-    Api.sendVoice userId (makeFile fileId) ""
-    :> IRequestBase<Message>
+    do!
+      Api.sendChatAction userId ChatAction.UploadAudio
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendVoice userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
 
   | Core.Document fileId ->
-    Api.sendDocument userId (makeFile fileId) ""
-    :> IRequestBase<Message>
+    do!
+      Api.sendChatAction userId ChatAction.UploadDocument
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendDocument userId (makeFile fileId) ""
+      |> Api.api config
+      |> Async.Ignore
 
   | Core.VideoNote fileId ->
-    Api.sendVideoNote userId (makeFile fileId)
-    :> IRequestBase<Message>
+    do!
+      Api.sendChatAction userId ChatAction.UploadVideoNote
+      |> Api.api config
+      |> Async.Ignore
+
+    do!
+      Api.sendVideoNote userId (makeFile fileId)
+      |> Api.api config
+      |> Async.Ignore }
 
 let onUpdate getConnection storagePath ctx = async {
   use connection = getConnection ()
@@ -148,7 +192,7 @@ let onUpdate getConnection storagePath ctx = async {
 
         do!
           contents
-          |> List.map (sendContent user.Id storagePath >> Api.api config)
+          |> List.map (sendContent config user.Id storagePath)
           |> Async.Sequential
           |> Async.Ignore
 
