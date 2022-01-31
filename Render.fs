@@ -9,6 +9,11 @@ open System.Text.RegularExpressions
 type User = Types.User
 type Button = Types.InlineKeyboardButton
 
+type Services =
+  { getCourses: Page -> Count -> Async<(int * string) list>
+    getBlocks: CourseId -> Page -> Count -> Async<(int * string) list>
+    getCourseDesc: CourseId -> Async<string> }
+
 let private c s = Regex("\n[ ]+").Replace(s, "\n")
 let private random = Random()
 let randomEmoji () =
@@ -170,20 +175,30 @@ let private editingTitleMsg title = function
     Текущее название курса: {title}
     Отправьте новое, чтоб изменить."
 
-let private editingDescMsg = function
-| EditingDesc.Started ->
-  c "Редактируем описание курса 👽
+let private editingDescMsg desc =
+  let desc =
+    if String.IsNullOrEmpty desc then
+      "У Вашего курса пока нет описания."
+    else
+      c$"Текущее описание курса:
+        {desc}"
 
-    Отправьте текст, чтоб изменить описание.
-    Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
-    будут видеть в первую очередь, не считая названия курса."
+  function
+  | EditingDesc.Started ->
+    c$"Редактируем описание курса 👽
 
-| EditingDesc.Error ->
-  c$"Неизвестная команда {randomEmoji ()}
+      {desc}
 
-    Отправьте текст, чтоб изменить описание курса.
-    Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
-    будут видеть в первую очередь, не считая названия курса."
+      Отправьте текст, чтоб изменить описание.
+      Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
+      будут видеть в первую очередь, не считая названия курса."
+
+  | EditingDesc.Error ->
+    c$"Неизвестная команда {randomEmoji ()}
+
+      Отправьте текст, чтоб изменить описание курса.
+      Постарайтесь сделать его понятным и читаемым. Это то, что Ваши клиенты \
+      будут видеть в первую очередь, не считая названия курса."
 
 let private listingCoursesMsg page count courseCount msg =
   let m s =
@@ -313,7 +328,7 @@ let private button text command : Button =
     SwitchInlineQuery = None
     SwitchInlineQueryCurrentChat = None }
 
-let state getCourses getBlocks user state = async {
+let state services user state = async {
   match state with
   | Inactive ->
     return String.Empty, None
@@ -341,15 +356,16 @@ let state getCourses getBlocks user state = async {
       editingTitleMsg title msg,
       Some [ [ button Button.cancel Commands.cancel ] ]
 
-  | EditingDesc (_, msg) ->
+  | EditingDesc (courseId, msg) ->
+    let! desc = services.getCourseDesc courseId
+
     return
-      editingDescMsg msg,
+      editingDescMsg desc msg,
       Some
-        [ [ button Button.show Commands.show
-            button Button.cancel Commands.cancel ] ]
+        [ [ button Button.cancel Commands.cancel ] ]
 
   | ListingCourses (page, count, msg) ->
-    let! courses = getCourses page count
+    let! courses = services.getCourses page count
 
     return
       listingCoursesMsg page count (List.length courses) msg,
@@ -382,7 +398,7 @@ let state getCourses getBlocks user state = async {
           [ button Button.back      Commands.back    ] ]
 
   | ListingBlocks (courseId, page, count, msg) ->
-    let! blocks = getBlocks courseId page count
+    let! blocks = services.getBlocks courseId page count
 
     return
       listingBlocksMsg page count (List.length blocks) msg,
@@ -399,15 +415,6 @@ let state getCourses getBlocks user state = async {
           yield [ button Button.back Commands.back ] ] }
 
 let queryEffect = function
-| Some (Commands.ShowDesc "") ->
-  let text
-    = "У Вашего курса пока нет описания. Отправьте текст, чтоб добавить его."
-
-  [ ], Some text
-
-| Some (Commands.ShowDesc desc) ->
-  [ Core.Text desc ], None
-
 | Some (Commands.ShowContent [ ]) ->
   [ ], Some "Этот блок пока что пуст. Добавьте контент."
 

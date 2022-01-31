@@ -129,6 +129,11 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore }
 
+let getRenderServices connection creatorId : Render.Services =
+  { getCourses = Repo.getCourses connection creatorId
+    getBlocks = Repo.getBlocks connection
+    getCourseDesc = Repo.getCourseDesc connection }
+
 let onUpdate getConnection storagePath ctx = async {
   use connection = getConnection ()
   let config = ctx.Config
@@ -139,12 +144,14 @@ let onUpdate getConnection storagePath ctx = async {
     let! creatorId, lastId, state = State.get connection user.Id
 
     let services = Services.get connection config storagePath creatorId
+
     let commands = Commands.onMessage message
+
     let! state, _ = Core.update services commands state
 
-    let getCourses = Repo.getCourses connection creatorId
-    let getBlocks = Repo.getBlocks connection
-    let! text, keyboard = Render.state getCourses getBlocks user state
+    let renderServices = getRenderServices connection creatorId
+
+    let! text, keyboard = Render.state renderServices user state
 
     match lastId with
     | Some messageId ->
@@ -171,9 +178,9 @@ let onUpdate getConnection storagePath ctx = async {
 
     let effectContents, queryAnswer = Render.queryEffect effect
 
-    let getCourses = Repo.getCourses connection creatorId
-    let getBlocks = Repo.getBlocks connection
-    let! text, keyboard = Render.state getCourses getBlocks user state
+    let renderServices = getRenderServices connection creatorId
+
+    let! text, keyboard = Render.state renderServices user state
 
     do! answerCallbackQuery config query.Id queryAnswer
 

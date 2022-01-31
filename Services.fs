@@ -150,7 +150,6 @@ let get connection config storagePath creatorId =
     tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
     getCourseTitle = getCourseTitle
-    getCourseDesc = getCourseDesc
     updateDesc = updateDesc
     checkAnyCourses = checkAnyCourses
     getCoursesCount = getCoursesCount

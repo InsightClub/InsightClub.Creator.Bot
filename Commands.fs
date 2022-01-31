@@ -10,7 +10,6 @@ type CallbackQuery = Types.CallbackQuery
 type PhotoSize = Types.PhotoSize
 
 type QueryEffect =
-  | ShowDesc of CourseDesc
   | ShowContent of Content list
   | InformMin
   | InformMax
@@ -170,7 +169,6 @@ let onQuery query =
 
   let getEditingDesc () =
     match query with
-    | CommandQ show   -> Some <| EditingDesc.Show QueryEffect.ShowDesc
     | CommandQ cancel -> Some EditingDesc.Cancel
     | _               -> None
 

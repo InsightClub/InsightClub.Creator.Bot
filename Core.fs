@@ -87,7 +87,6 @@ module EditingTitle =
 
 module EditingDesc =
   type Command<'Effect> =
-    | Show of showDesc: (CourseDesc -> 'Effect)
     | Cancel
     | SetDesc of CourseDesc
 
@@ -179,7 +178,6 @@ type BotServices<'Effect, 'Result> =
     tryCreateCourse: CourseTitle -> Service<CourseId option, 'Result>
     tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'Result>
     getCourseTitle: CourseId -> Service<CourseTitle, 'Result>
-    getCourseDesc: CourseId -> Service<CourseDesc, 'Result>
     updateDesc: CourseId -> CourseDesc -> Service<'Result>
     checkAnyCourses: Service<bool, 'Result>
     getCoursesCount: Service<Count, 'Result>
@@ -303,14 +301,7 @@ let private updateEditingTitle
   callback (EditingTitle (courseId, courseTitle, EditingTitle.Error)) None
 
 let private updateEditingDesc
-  callback getCourseDesc updateDesc courseId = function
-| Some (EditingDesc.Show show) ->
-  getCourseDesc courseId <|
-    fun desc ->
-      callback
-        (EditingDesc (courseId, EditingDesc.Started))
-        (Some <| show desc)
-
+  callback updateDesc courseId = function
 | Some EditingDesc.Cancel ->
   callback (EditingCourse (courseId, EditingCourse.DescCanceled)) None
 
@@ -600,7 +591,7 @@ let update services commands =
 
   | EditingDesc (courseId, _) ->
     commands.getEditingDesc ()
-    |> updateEditingDesc s.callback s.getCourseDesc s.updateDesc courseId
+    |> updateEditingDesc s.callback s.updateDesc courseId
 
   | ListingCourses (page, count, _) ->
     commands.getListingCourses ()
