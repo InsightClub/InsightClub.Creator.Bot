@@ -10,9 +10,10 @@ type User = Types.User
 type Button = Types.InlineKeyboardButton
 
 type Services =
-  { getCourses: Page -> Count -> Async<(int * string) list>
-    getBlocks: CourseId -> Page -> Count -> Async<(int * string) list>
-    getCourseDesc: CourseId -> Async<string> }
+  { getCourses: Page -> Count -> Async<(CourseId * CourseTitle) list>
+    getBlocks: CourseId -> Page -> Count -> Async<(BlockId * BlockTitle) list>
+    getCourseTitle: CourseId -> Async<CourseTitle>
+    getCourseDesc: CourseId -> Async<CourseDesc> }
 
 let private c s = Regex("\n[ ]+").Replace(s, "\n")
 let private random = Random()
@@ -160,19 +161,25 @@ let private editingTitleMsg title = function
 | EditingTitle.Started ->
   c$"Редактируем название курса 🥸
 
-    Текущее название курса: {title}
+    Текущее название курса:
+    {title}
+
     Отправьте новое, чтоб изменить."
 
 | EditingTitle.TitleReserved ->
   c$"Курс с таким названием уже существует 🤷‍♂️
 
-    Текущее название курса: {title}
+    Текущее название курса:
+    {title}
+
     Отправьте новое, чтоб изменить."
 
 | EditingTitle.Error ->
   c$"Неизвестная команда {randomEmoji ()}
 
-    Текущее название курса: {title}
+    Текущее название курса:
+    {title}
+
     Отправьте новое, чтоб изменить."
 
 let private editingDescMsg desc =
@@ -351,7 +358,9 @@ let state services user state = async {
             button Button.edit  Commands.edit ]
           [ button Button.exit  Commands.exit ] ]
 
-  | EditingTitle (_, title, msg) ->
+  | EditingTitle (courseId, msg) ->
+    let! title = services.getCourseTitle courseId
+
     return
       editingTitleMsg title msg,
       Some [ [ button Button.cancel Commands.cancel ] ]

@@ -149,7 +149,7 @@ type BotState =
   | Idle of Idle.Msg
   | CreatingCourse of CreatingCourse.Msg
   | EditingCourse of CourseId * EditingCourse.Msg
-  | EditingTitle of CourseId * CourseTitle * EditingTitle.Msg
+  | EditingTitle of CourseId * EditingTitle.Msg
   | EditingDesc of CourseId * EditingDesc.Msg
   | ListingCourses of Page * Count * ListingCourses.Msg
   | CreatingBlock of CourseId * Index * CreatingBlock.Msg
@@ -177,7 +177,6 @@ type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result
     tryCreateCourse: CourseTitle -> Service<CourseId option, 'Result>
     tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'Result>
-    getCourseTitle: CourseId -> Service<CourseTitle, 'Result>
     updateDesc: CourseId -> CourseDesc -> Service<'Result>
     checkAnyCourses: Service<bool, 'Result>
     getCoursesCount: Service<Count, 'Result>
@@ -241,13 +240,12 @@ let private updateCreatingCourse callback tryCreateCourse = function
   callback (CreatingCourse CreatingCourse.Error) None
 
 let private updateEditingCourse
-  callback getCourseTitle getBlocksCount checkAnyBlock courseId = function
+  callback getBlocksCount checkAnyBlock courseId = function
 | Some EditingCourse.EditTitle ->
-  getCourseTitle courseId <|
-    fun courseTitle ->
-      callback
-        (EditingTitle (courseId, courseTitle, EditingTitle.Started))
-        None
+    let newState =
+      EditingTitle (courseId, EditingTitle.Started)
+
+    callback newState None
 
 | Some EditingCourse.EditDesc ->
   callback (EditingDesc (courseId, EditingDesc.Started)) None
@@ -277,7 +275,7 @@ let private updateEditingCourse
   callback (EditingCourse (courseId, EditingCourse.Error)) None
 
 let private updateEditingTitle
-  callback tryUpdateTitle courseId courseTitle = function
+  callback tryUpdateTitle courseId = function
 | Some EditingTitle.Cancel ->
   callback (EditingCourse (courseId, EditingCourse.TitleCanceled)) None
 
@@ -290,15 +288,16 @@ let private updateEditingTitle
         None
 
     | false ->
-      callback
-        ( EditingTitle
-            ( courseId,
-              courseTitle,
-              EditingTitle.TitleReserved ) )
-        None
+      let newState =
+        EditingTitle (courseId, EditingTitle.TitleReserved)
+
+      callback newState None
 
 | None ->
-  callback (EditingTitle (courseId, courseTitle, EditingTitle.Error)) None
+  let newState =
+    EditingTitle (courseId, EditingTitle.Error)
+
+  callback newState None
 
 let private updateEditingDesc
   callback updateDesc courseId = function
@@ -583,11 +582,11 @@ let update services commands =
   | EditingCourse (courseId, _) ->
     commands.getEditingCourse ()
     |> updateEditingCourse
-      s.callback s.getCourseTitle s.getBlocksCount s.checkAnyBlocks courseId
+      s.callback s.getBlocksCount s.checkAnyBlocks courseId
 
-  | EditingTitle (courseId, courseTitle, _) ->
+  | EditingTitle (courseId, _) ->
     commands.getEditingTitle ()
-    |> updateEditingTitle s.callback s.tryUpdateTitle courseId courseTitle
+    |> updateEditingTitle s.callback s.tryUpdateTitle courseId
 
   | EditingDesc (courseId, _) ->
     commands.getEditingDesc ()

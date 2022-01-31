@@ -132,6 +132,7 @@ let sendContent config userId storagePath content = async {
 let getRenderServices connection creatorId : Render.Services =
   { getCourses = Repo.getCourses connection creatorId
     getBlocks = Repo.getBlocks connection
+    getCourseTitle = Repo.getCourseTitle connection
     getCourseDesc = Repo.getCourseDesc connection }
 
 let onUpdate getConnection storagePath ctx = async {
