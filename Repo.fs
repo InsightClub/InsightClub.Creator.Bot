@@ -1,5 +1,6 @@
 module InsightClub.Creator.Bot.Repo
 
+open Core
 open System
 open Npgsql
 open Npgsql.FSharp
@@ -29,14 +30,20 @@ let tryCreateCourse connection creatorId courseTitle = async {
           "course_title", Sql.string courseTitle ]
       |> Sql.executeRowAsync (fun read -> read.int "course_id")
       |> Async.AwaitTask
-      |> Async.map Some
+      |> Async.map Ok
 
   with
   | :? AggregateException as e when
-    (e.InnerException :? PostgresException) &&
+    (e.InnerException :?  PostgresException) &&
     (e.InnerException :?> PostgresException).SqlState
       = PostgresErrorCodes.UniqueViolation ->
-    return None }
+    return Error TitleError.NonUnique
+
+  | :? AggregateException as e when
+    (e.InnerException :?  PostgresException) &&
+    (e.InnerException :?> PostgresException).SqlState
+      = PostgresErrorCodes.CheckViolation ->
+    return Error TitleError.TooLong }
 
 let getState initialState connection telegramId =
   connection
@@ -91,13 +98,19 @@ let tryUpdateTitle connection courseId courseTitle = async {
           "course_id", Sql.int courseId ]
       |> Sql.executeNonQueryAsync
       |> Async.AwaitTask
-      |> Async.map(fun n -> n > 0)
+      |> Async.map (always <| Ok ())
   with
   | :? AggregateException as e when
     (e.InnerException :? PostgresException) &&
     (e.InnerException :?> PostgresException).SqlState
       = PostgresErrorCodes.UniqueViolation ->
-    return false }
+    return Error TitleError.NonUnique
+
+  | :? AggregateException as e when
+    (e.InnerException :? PostgresException) &&
+    (e.InnerException :?> PostgresException).SqlState
+      = PostgresErrorCodes.CheckViolation ->
+    return Error TitleError.TooLong }
 
 let getCourseTitle connection courseId =
   connection

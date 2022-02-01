@@ -27,6 +27,10 @@ type Content =
       | Text _ -> false
       | _      -> true
 
+type TitleError =
+  | NonUnique
+  | TooLong
+
 module Inactive =
   type Command = Start
 
@@ -52,7 +56,7 @@ module CreatingCourse =
 
   type Msg =
     | Started
-    | TitleReserved
+    | TitleError of TitleError
     | Error
 
 module EditingCourse =
@@ -82,7 +86,7 @@ module EditingTitle =
 
   type Msg =
     | Started
-    | TitleReserved
+    | TitleError of TitleError
     | Error
 
 module EditingDesc =
@@ -175,8 +179,10 @@ type Service<'Result> = Service<unit, 'Result>
 
 type BotServices<'Effect, 'Result> =
   { callback: BotState -> 'Effect option -> 'Result
-    tryCreateCourse: CourseTitle -> Service<CourseId option, 'Result>
-    tryUpdateTitle: CourseId -> CourseTitle -> Service<bool, 'Result>
+    tryCreateCourse:
+      CourseTitle -> Service<Result<CourseId, TitleError>, 'Result>
+    tryUpdateTitle:
+      CourseId -> CourseTitle -> Service<Result<unit, TitleError>, 'Result>
     updateDesc: CourseId -> CourseDesc -> Service<'Result>
     checkAnyCourses: Service<bool, 'Result>
     getCoursesCount: Service<Count, 'Result>
@@ -230,11 +236,14 @@ let private updateCreatingCourse callback tryCreateCourse = function
 | Some (CreatingCourse.CreateCourse title) ->
   tryCreateCourse title <|
     function
-    | Some courseId ->
+    | Ok courseId ->
       callback (EditingCourse (courseId, EditingCourse.CourseCreated)) None
 
-    | None ->
-      callback (CreatingCourse CreatingCourse.TitleReserved) None
+    | Error error ->
+      let newState =
+        CreatingCourse (CreatingCourse.TitleError error)
+
+      callback newState None
 
 | None ->
   callback (CreatingCourse CreatingCourse.Error) None
@@ -282,14 +291,15 @@ let private updateEditingTitle
 | Some (EditingTitle.SetTitle title) ->
   tryUpdateTitle courseId title <|
     function
-    | true ->
-      callback
-        (EditingCourse (courseId, EditingCourse.TitleSet))
-        None
-
-    | false ->
+    | Ok () ->
       let newState =
-        EditingTitle (courseId, EditingTitle.TitleReserved)
+        EditingCourse (courseId, EditingCourse.TitleSet)
+
+      callback newState None
+
+    | Error error ->
+      let newState =
+        EditingTitle (courseId, EditingTitle.TitleError error)
 
       callback newState None
 
