@@ -136,19 +136,27 @@ let getCourseDesc connection courseId =
   |> Sql.executeRowAsync ( fun read -> read.string "course_description" )
   |> Async.AwaitTask
 
-let updateDesc connection courseId courseDesc =
-  connection
-  |> Sql.existingConnection
-  |> Sql.query
-    "UPDATE courses
-    SET course_description = @course_description
-    WHERE course_id = @course_id"
-  |> Sql.parameters
-    [ "course_description", Sql.string courseDesc
-      "course_id", Sql.int courseId ]
-  |> Sql.executeNonQueryAsync
-  |> Async.AwaitTask
-  |> Async.Ignore
+let tryUpdateDesc connection courseId courseDesc = async {
+  try
+    return!
+      connection
+      |> Sql.existingConnection
+      |> Sql.query
+        "UPDATE courses
+        SET course_description = @course_description
+        WHERE course_id = @course_id"
+      |> Sql.parameters
+        [ "course_description", Sql.string courseDesc
+          "course_id", Sql.int courseId ]
+      |> Sql.executeNonQueryAsync
+      |> Async.AwaitTask
+      |> Async.map (always true)
+  with
+  | :? AggregateException as e when
+    (e.InnerException :? PostgresException) &&
+    (e.InnerException :?> PostgresException).SqlState
+      = PostgresErrorCodes.CheckViolation ->
+    return false }
 
 let checkAnyCourses connection creatorId =
   connection

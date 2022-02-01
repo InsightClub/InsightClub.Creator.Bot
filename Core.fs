@@ -96,6 +96,7 @@ module EditingDesc =
 
   type Msg =
     | Started
+    | DescTooLong
     | Error
 
 module ListingCourses =
@@ -183,7 +184,7 @@ type BotServices<'Effect, 'Result> =
       CourseTitle -> Service<Result<CourseId, TitleError>, 'Result>
     tryUpdateTitle:
       CourseId -> CourseTitle -> Service<Result<unit, TitleError>, 'Result>
-    updateDesc: CourseId -> CourseDesc -> Service<'Result>
+    tryUpdateDesc: CourseId -> CourseDesc -> Service<bool, 'Result>
     checkAnyCourses: Service<bool, 'Result>
     getCoursesCount: Service<Count, 'Result>
     tryCreateBlock:
@@ -310,14 +311,24 @@ let private updateEditingTitle
   callback newState None
 
 let private updateEditingDesc
-  callback updateDesc courseId = function
+  callback tryUpdateDesc courseId = function
 | Some EditingDesc.Cancel ->
   callback (EditingCourse (courseId, EditingCourse.DescCanceled)) None
 
 | Some (EditingDesc.SetDesc desc) ->
-  updateDesc courseId desc <|
-    fun () ->
-      callback (EditingCourse (courseId, EditingCourse.DescSet)) None
+  tryUpdateDesc courseId desc <|
+    function
+    | true ->
+      let newState =
+        EditingCourse (courseId, EditingCourse.DescSet)
+
+      callback newState None
+
+    | false ->
+      let newState =
+        EditingDesc (courseId, EditingDesc.DescTooLong)
+
+      callback newState None
 
 | None ->
   callback (EditingDesc (courseId, EditingDesc.Error)) None
@@ -600,7 +611,7 @@ let update services commands =
 
   | EditingDesc (courseId, _) ->
     commands.getEditingDesc ()
-    |> updateEditingDesc s.callback s.updateDesc courseId
+    |> updateEditingDesc s.callback s.tryUpdateDesc courseId
 
   | ListingCourses (page, count, _) ->
     commands.getListingCourses ()

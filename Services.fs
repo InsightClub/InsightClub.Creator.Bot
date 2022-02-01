@@ -32,10 +32,11 @@ let get connection config storagePath creatorId =
 
     return! callback wasUpdated }
 
-  let updateDesc courseId courseDesc callback = async {
-    do! Repo.updateDesc connection courseId courseDesc
+  let tryUpdateDesc courseId courseDesc callback = async {
+    let! ok =
+      Repo.tryUpdateDesc connection courseId courseDesc
 
-    return! callback () }
+    return! callback ok }
 
   let checkAnyCourses callback = async {
     let! any =
@@ -137,7 +138,7 @@ let get connection config storagePath creatorId =
   { callback = callback
     tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
-    updateDesc = updateDesc
+    tryUpdateDesc = tryUpdateDesc
     checkAnyCourses = checkAnyCourses
     getCoursesCount = getCoursesCount
     tryCreateBlock = tryCreateBlock
