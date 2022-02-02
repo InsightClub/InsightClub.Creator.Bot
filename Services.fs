@@ -5,17 +5,6 @@ open Funogram
 open Funogram.Telegram
 
 
-let private mapContent = function
-| text, "text"         -> Text text
-| fileId, "photo"      -> Photo fileId
-| fileId, "audio"      -> Audio fileId
-| fileId, "video"      -> Video fileId
-| fileId, "voice"      -> Voice fileId
-| fileId, "document"   -> Document fileId
-| fileId, "video_note" -> VideoNote fileId
-| fileId, contentType  ->
-  failwith $"Unknown content type: {contentType}! FileId: {fileId}"
-
 let get connection config storagePath creatorId =
   let callback state effect =
     Async.singleton (state, effect)
@@ -57,21 +46,12 @@ let get connection config storagePath creatorId =
     return! callback blockId }
 
   let addContent blockId content callback = async {
-    let innerContent, contentType =
-      match content with
-      | Text text        -> text, "text"
-      | Photo fileId     -> fileId, "photo"
-      | Audio fileId     -> fileId, "audio"
-      | Video fileId     -> fileId, "video"
-      | Voice fileId     -> fileId, "voice"
-      | Document fileId  -> fileId, "document"
-      | VideoNote fileId -> fileId, "video_note"
-
-    do! Repo.addContent connection blockId innerContent contentType
+    do!
+      Repo.addContent connection blockId content
 
     if content.IsFile then
       let! file =
-        Api.getFile innerContent
+        Api.getFile content.Content
         |> Api.api config
 
       match file with
@@ -110,8 +90,6 @@ let get connection config storagePath creatorId =
     let! contents =
       Repo.getBlockContents connection blockId
 
-    let contents = contents |> List.map mapContent
-
     return! callback contents }
 
   let getBlockInfoByIndex courseId blockId callback = async {
@@ -126,9 +104,9 @@ let get connection config storagePath creatorId =
 
     contents
     |> List.iter
-      ( fun (content, contentType) ->
-          if contentType <> "text" then
-            Storage.deleteFile storagePath content )
+      ( fun content ->
+          if content.IsFile then
+            Storage.deleteFile storagePath content.Content )
 
     let! count =
       Repo.cleanBlock connection blockId

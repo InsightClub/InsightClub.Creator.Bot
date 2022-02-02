@@ -27,6 +27,16 @@ type Content =
       | Text _ -> false
       | _      -> true
 
+    member this.Content =
+      match this with
+      | Text text        -> text
+      | Photo fileId     -> fileId
+      | Audio fileId     -> fileId
+      | Video fileId     -> fileId
+      | Voice fileId     -> fileId
+      | Document fileId  -> fileId
+      | VideoNote fileId -> fileId
+
 type TitleError =
   | NonUnique
   | TooLong

@@ -6,7 +6,7 @@ open Npgsql
 open Npgsql.FSharp
 
 
-module Sql =
+module private Sql =
   let contentType t =
     let parameter =
       NpgsqlParameter
@@ -15,6 +15,26 @@ module Sql =
           DataTypeName = "content_type" )
 
     Sql.parameter parameter
+
+let private deserializeContent content = function
+| "text"       -> Text content
+| "photo"      -> Photo content
+| "audio"      -> Audio content
+| "video"      -> Video content
+| "voice"      -> Voice content
+| "document"   -> Document content
+| "video_note" -> VideoNote content
+| contentType  ->
+  failwith $"Unknown content type: {contentType}! FileId: {content}"
+
+let private serializeContent = function
+| Text text        -> text, "text"
+| Photo fileId     -> fileId, "photo"
+| Audio fileId     -> fileId, "audio"
+| Video fileId     -> fileId, "video"
+| Voice fileId     -> fileId, "voice"
+| Document fileId  -> fileId, "document"
+| VideoNote fileId -> fileId, "video_note"
 
 let tryCreateCourse connection creatorId courseTitle = async {
   try
@@ -264,7 +284,9 @@ let tryCreateBlock connection courseId blockIndex blockTitle = async {
       = PostgresErrorCodes.UniqueViolation ->
     return None }
 
-let addContent connection blockId content contentType =
+let addContent connection blockId content =
+  let content, contentType = serializeContent content
+
   connection
   |> Sql.existingConnection
   |> Sql.query
@@ -361,8 +383,10 @@ let getBlockContents connection blockId =
     [ "block_id", Sql.int blockId ]
   |> Sql.executeAsync
     ( fun read ->
-        read.string "content",
-        read.string "content_type" )
+        let content = read.string "content"
+        let contentType = read.string "content_type"
+
+        deserializeContent content contentType )
   |> Async.AwaitTask
 
 let getBlockInfoByIndex connection courseId blockIndex =
