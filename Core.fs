@@ -171,19 +171,19 @@ type BotState =
   | EditingBlock of CourseId * BlockId * Index * BlockTitle * EditingBlock.Msg
   | ListingBlocks of CourseId * Page * Count * ListingBlocks.Msg
 
-type GetCommand<'Command> = unit -> 'Command option
+type BotPort<'Command> = unit -> 'Command option
 
-type BotCommands<'Effect> =
-  { getInactive: GetCommand<Inactive.Command>
-    getIdle: GetCommand<Idle.Command>
-    getCreatingCourse: GetCommand<CreatingCourse.Command>
-    getEditingCourse: GetCommand<EditingCourse.Command>
-    getEditingTitle: GetCommand<EditingTitle.Command>
-    getEditingDesc: GetCommand<EditingDesc.Command<'Effect>>
-    getListingCourses: GetCommand<ListingCourses.Command<'Effect>>
-    getCreatingBlock: GetCommand<CreatingBlock.Command>
-    getEditingBlock: GetCommand<EditingBlock.Command<'Effect>>
-    getListingBlocks: GetCommand<ListingBlocks.Command<'Effect>> }
+type BotDispatcher<'Effect> =
+  { askInactive: BotPort<Inactive.Command>
+    askIdle: BotPort<Idle.Command>
+    askCreatingCourse: BotPort<CreatingCourse.Command>
+    askEditingCourse: BotPort<EditingCourse.Command>
+    askEditingTitle: BotPort<EditingTitle.Command>
+    askEditingDesc: BotPort<EditingDesc.Command<'Effect>>
+    askListingCourses: BotPort<ListingCourses.Command<'Effect>>
+    askCreatingBlock: BotPort<CreatingBlock.Command>
+    askEditingBlock: BotPort<EditingBlock.Command<'Effect>>
+    askListingBlocks: BotPort<ListingBlocks.Command<'Effect>> }
 
 type Service<'Param, 'Result> = ('Param -> 'Result) -> 'Result
 type Service<'Result> = Service<unit, 'Result>
@@ -595,44 +595,44 @@ let updateListingBlocks
 | None ->
   callback (ListingBlocks (courseId, page, count, ListingBlocks.Error)) None
 
-let update services commands =
+let update services dispatcher =
   let s = services
   function
   | Inactive ->
-    commands.getInactive ()
+    dispatcher.askInactive ()
     |> updateInactive s.callback
 
   | Idle _ ->
-    commands.getIdle ()
+    dispatcher.askIdle ()
     |> updateIdle s.callback s.checkAnyCourses
 
   | CreatingCourse _ ->
-    commands.getCreatingCourse ()
+    dispatcher.askCreatingCourse ()
     |> updateCreatingCourse s.callback s.tryCreateCourse
 
   | EditingCourse (courseId, _) ->
-    commands.getEditingCourse ()
+    dispatcher.askEditingCourse ()
     |> updateEditingCourse
       s.callback s.getBlocksCount s.checkAnyBlocks courseId
 
   | EditingTitle (courseId, _) ->
-    commands.getEditingTitle ()
+    dispatcher.askEditingTitle ()
     |> updateEditingTitle s.callback s.tryUpdateTitle courseId
 
   | EditingDesc (courseId, _) ->
-    commands.getEditingDesc ()
+    dispatcher.askEditingDesc ()
     |> updateEditingDesc s.callback s.tryUpdateDesc courseId
 
   | ListingCourses (page, count, _) ->
-    commands.getListingCourses ()
+    dispatcher.askListingCourses ()
     |> updateListingCourses s.callback s.getCoursesCount page count
 
   | CreatingBlock (courseId, lastIndex, _) ->
-    commands.getCreatingBlock ()
+    dispatcher.askCreatingBlock ()
     |> updateCreatingBlock s.callback s.tryCreateBlock courseId lastIndex
 
   | EditingBlock (courseId, blockId, index, title, _) ->
-    commands.getEditingBlock ()
+    dispatcher.askEditingBlock ()
     |> updateEditingBlock
       s.callback
       s.addContent
@@ -646,6 +646,6 @@ let update services commands =
       title
 
   | ListingBlocks (courseId, page, count, _) ->
-    commands.getListingBlocks ()
+    dispatcher.askListingBlocks ()
     |> updateListingBlocks
       s.callback s.getBlockInfo s.getBlocksCount courseId page count

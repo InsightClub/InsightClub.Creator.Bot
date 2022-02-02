@@ -25,9 +25,9 @@ let randomEmoji () =
   emojis.[ random.Next(emojis.Length) ]
 
 let private commands =
-  c$"{Commands.new'} - Создать новый курс ⚡️
-    {Commands.edit} - Редактировать существующий курс 📝
-    {Commands.help} - Получить помощь (Вы сейчас здесь) 👀"
+  c$"{Dispatcher.new'} - Создать новый курс ⚡️
+    {Dispatcher.edit} - Редактировать существующий курс 📝
+    {Dispatcher.help} - Получить помощь (Вы сейчас здесь) 👀"
 
 let private idleMsg (user: User) = function
 | Idle.Started ->
@@ -51,13 +51,13 @@ let private idleMsg (user: User) = function
 
     {commands}
 
-    Учитывайте, что команда {Commands.help} работает только в режиме ожидания. \
+    Учитывайте, что команда {Dispatcher.help} работает только в режиме ожидания. \
     В остальных режимах она не распознаётся, ибо их интерфейс поможет \
     Вам легко разобраться 🔥"
 
 | Idle.NoCourses ->
   c$"У Вас пока нет курсов {randomEmoji ()}
-    Создайте новый, отправив команду {Commands.new'} 🤹‍♂️"
+    Создайте новый, отправив команду {Dispatcher.new'} 🤹‍♂️"
 
 | Idle.CreateCanceled ->
   c$"Создание курса отменено 👌
@@ -76,7 +76,7 @@ let private idleMsg (user: User) = function
 
 | Idle.Error ->
   c$"Неизвестная команда {randomEmoji ()}
-    Отправьте {Commands.help} для получения помощи 👀"
+    Отправьте {Dispatcher.help} для получения помощи 👀"
 
 let private creatingCourseMsg = function
 | CreatingCourse.Started ->
@@ -389,24 +389,24 @@ let state services user state = async {
   | CreatingCourse msg ->
     return
       creatingCourseMsg msg,
-      Some [ [ button Button.cancel Commands.cancel ] ]
+      Some [ [ button Button.cancel Dispatcher.cancel ] ]
 
   | EditingCourse (_, msg) ->
     return
       editingCourseMsg msg,
       Some
-        [ [ button Button.title Commands.title
-            button Button.desc  Commands.desc ]
-          [ button Button.add   Commands.add
-            button Button.edit  Commands.edit ]
-          [ button Button.exit  Commands.exit ] ]
+        [ [ button Button.title Dispatcher.title
+            button Button.desc  Dispatcher.desc ]
+          [ button Button.add   Dispatcher.add
+            button Button.edit  Dispatcher.edit ]
+          [ button Button.exit  Dispatcher.exit ] ]
 
   | EditingTitle (courseId, msg) ->
     let! title = services.getCourseTitle courseId
 
     return
       editingTitleMsg title msg,
-      Some [ [ button Button.cancel Commands.cancel ] ]
+      Some [ [ button Button.cancel Dispatcher.cancel ] ]
 
   | EditingDesc (courseId, msg) ->
     let! desc = services.getCourseDesc courseId
@@ -414,7 +414,7 @@ let state services user state = async {
     return
       editingDescMsg desc msg,
       Some
-        [ [ button Button.cancel Commands.cancel ] ]
+        [ [ button Button.cancel Dispatcher.cancel ] ]
 
   | ListingCourses (page, count, msg) ->
     let! courses = services.getCourses page count
@@ -423,31 +423,31 @@ let state services user state = async {
       listingCoursesMsg page count (List.length courses) msg,
       Some
         [ for (id, title) in courses do
-            yield [ button title $"{Commands.edit} {id}" ]
+            yield [ button title $"{Dispatcher.edit} {id}" ]
 
-          yield [ button Button.prev Commands.prev
-                  button Button.next Commands.next ]
+          yield [ button Button.prev Dispatcher.prev
+                  button Button.next Dispatcher.next ]
 
-          yield [ button Button.exit Commands.exit ] ]
+          yield [ button Button.exit Dispatcher.exit ] ]
 
   | CreatingBlock (_, _, msg) ->
     return
       creatingBlockMsg msg,
-      Some [ [ button Button.cancel Commands.cancel ] ]
+      Some [ [ button Button.cancel Dispatcher.cancel ] ]
 
   | EditingBlock (_, _, _, title, msg) ->
     return
       editingBlockMsg title msg,
       Some
-        [ [ button Button.insert    Commands.nothing ]
-          [ button Button.before    Commands.before
-            button Button.after     Commands.after   ]
-          [ button Button.move      Commands.nothing ]
-          [ button Button.movePrev  Commands.prev
-            button Button.moveNext  Commands.next    ]
-          [ button Button.show      Commands.show
-            button Button.clean     Commands.clean   ]
-          [ button Button.back      Commands.back    ] ]
+        [ [ button Button.insert    Dispatcher.nothing ]
+          [ button Button.before    Dispatcher.before
+            button Button.after     Dispatcher.after   ]
+          [ button Button.move      Dispatcher.nothing ]
+          [ button Button.movePrev  Dispatcher.prev
+            button Button.moveNext  Dispatcher.next    ]
+          [ button Button.show      Dispatcher.show
+            button Button.clean     Dispatcher.clean   ]
+          [ button Button.back      Dispatcher.back    ] ]
 
   | ListingBlocks (courseId, page, count, msg) ->
     let! blocks = services.getBlocks courseId page count
@@ -459,27 +459,27 @@ let state services user state = async {
             yield
               [ button
                   $"{page * count + i + 1}. {title}"
-                  $"{Commands.edit} {id}" ]
+                  $"{Dispatcher.edit} {id}" ]
 
-          yield [ button Button.prev Commands.prev
-                  button Button.next Commands.next ]
+          yield [ button Button.prev Dispatcher.prev
+                  button Button.next Dispatcher.next ]
 
-          yield [ button Button.back Commands.back ] ] }
+          yield [ button Button.back Dispatcher.back ] ] }
 
 let queryEffect = function
-| Some (Commands.ShowContent [ ]) ->
+| Some (Dispatcher.ShowContent [ ]) ->
   [ ], Some "Этот блок пока что пуст. Добавьте контент."
 
-| Some (Commands.ShowContent contents) ->
+| Some (Dispatcher.ShowContent contents) ->
   contents, None
 
-| Some Commands.InformMin ->
+| Some Dispatcher.InformMin ->
   [ ], Some "Вы дошли до начала."
 
-| Some Commands.InformMax ->
+| Some Dispatcher.InformMax ->
   [ ], Some "Вы дошли до конца."
 
-| Some Commands.InformEmpty ->
+| Some Dispatcher.InformEmpty ->
   [ ], Some "Очищение не требуется. Блок пуст."
 
 | None ->

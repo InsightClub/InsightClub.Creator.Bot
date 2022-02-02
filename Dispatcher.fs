@@ -1,4 +1,4 @@
-module InsightClub.Creator.Bot.Commands
+module InsightClub.Creator.Bot.Dispatcher
 
 open Core
 open System
@@ -82,44 +82,44 @@ let private (|ParamQ|_|) command = function
 
   | _ -> None
 
-let onMessage message : BotCommands<unit> =
-  let getInactive () =
+let dispatchMessage message : BotDispatcher<unit> =
+  let askInactive () =
     match message with
     | Command start -> Some Inactive.Start
     | _             -> None
 
-  let getIdle () =
+  let askIdle () =
     match message with
     | Command help -> Some Idle.Help
     | Command new' -> Some Idle.CreateCourse
     | Command edit -> Some <| Idle.EditCourse 5
     | _            -> None
 
-  let getCreatingCourse () =
+  let askCreatingCourse () =
     match message with
     | Text title -> Some <| CreatingCourse.CreateCourse title
     | _          -> None
 
-  let getEditingCourse () = None
+  let askEditingCourse () = None
 
-  let getEditingTitle () =
+  let askEditingTitle () =
     match message with
     | Text title -> Some <| EditingTitle.SetTitle title
     | _          -> None
 
-  let getEditingDesc () =
+  let askEditingDesc () =
     match message with
     | Text desc -> Some <| EditingDesc.SetDesc desc
     | _         -> None
 
-  let getListingCourses () = None
+  let askListingCourses () = None
 
-  let getCreatingBlock () =
+  let askCreatingBlock () =
     match message with
     | Text title -> Some <| CreatingBlock.CreateBlock title
     | _          -> None
 
-  let getEditingBlock () =
+  let askEditingBlock () =
     match message with
     | Text text        -> Some <| EditingBlock.AddContent (Text text)
     | Photo fileId     -> Some <| EditingBlock.AddContent (Photo fileId)
@@ -130,30 +130,30 @@ let onMessage message : BotCommands<unit> =
     | VideoNote fileId -> Some <| EditingBlock.AddContent (VideoNote fileId)
     | _                -> None
 
-  let getListingBlocks () = None
+  let askListingBlocks () = None
 
-  { getInactive = getInactive
-    getIdle = getIdle
-    getCreatingCourse = getCreatingCourse
-    getEditingCourse = getEditingCourse
-    getEditingTitle = getEditingTitle
-    getEditingDesc = getEditingDesc
-    getListingCourses = getListingCourses
-    getCreatingBlock = getCreatingBlock
-    getEditingBlock = getEditingBlock
-    getListingBlocks = getListingBlocks }
+  { askInactive = askInactive
+    askIdle = askIdle
+    askCreatingCourse = askCreatingCourse
+    askEditingCourse = askEditingCourse
+    askEditingTitle = askEditingTitle
+    askEditingDesc = askEditingDesc
+    askListingCourses = askListingCourses
+    askCreatingBlock = askCreatingBlock
+    askEditingBlock = askEditingBlock
+    askListingBlocks = askListingBlocks }
 
-let onQuery query =
-  let getInactive () = None
+let dispatchCallbackQuery query =
+  let askInactive () = None
 
-  let getIdle () = None
+  let askIdle () = None
 
-  let getCreatingCourse () =
+  let askCreatingCourse () =
     match query with
     | CommandQ cancel -> Some CreatingCourse.Cancel
     | _               -> None
 
-  let getEditingCourse () =
+  let askEditingCourse () =
     match query with
     | CommandQ title -> Some EditingCourse.EditTitle
     | CommandQ desc  -> Some EditingCourse.EditDesc
@@ -162,17 +162,17 @@ let onQuery query =
     | CommandQ edit  -> Some <| EditingCourse.EditBlock 5
     | _              -> None
 
-  let getEditingTitle () =
+  let askEditingTitle () =
     match query with
     | CommandQ cancel -> Some EditingTitle.Cancel
     | _               -> None
 
-  let getEditingDesc () =
+  let askEditingDesc () =
     match query with
     | CommandQ cancel -> Some EditingDesc.Cancel
     | _               -> None
 
-  let getListingCourses () =
+  let askListingCourses () =
     match query with
     | ParamQ edit id -> Some <| ListingCourses.Select id
     | CommandQ prev  -> Some <| ListingCourses.Prev QueryEffect.InformMin
@@ -180,12 +180,12 @@ let onQuery query =
     | CommandQ exit  -> Some ListingCourses.Exit
     | _              -> None
 
-  let getCreatingBlock () =
+  let askCreatingBlock () =
     match query with
     | CommandQ cancel -> Some CreatingBlock.Cancel
     | _               -> None
 
-  let getEditingBlock () =
+  let askEditingBlock () =
     match query with
     | CommandQ back    -> Some EditingBlock.Back
     | CommandQ nothing -> Some EditingBlock.Nothing
@@ -197,7 +197,7 @@ let onQuery query =
     | CommandQ show    -> Some <| EditingBlock.Show QueryEffect.ShowContent
     | _                -> None
 
-  let getListingBlocks () =
+  let askListingBlocks () =
     match query with
     | ParamQ edit id -> Some <| ListingBlocks.Select id
     | CommandQ prev  -> Some <| ListingBlocks.Prev QueryEffect.InformMin
@@ -205,13 +205,13 @@ let onQuery query =
     | CommandQ back  -> Some ListingBlocks.Back
     | _              -> None
 
-  { getInactive = getInactive
-    getIdle = getIdle
-    getCreatingCourse = getCreatingCourse
-    getEditingCourse = getEditingCourse
-    getEditingTitle = getEditingTitle
-    getEditingDesc = getEditingDesc
-    getListingCourses = getListingCourses
-    getCreatingBlock = getCreatingBlock
-    getEditingBlock = getEditingBlock
-    getListingBlocks = getListingBlocks }
+  { askInactive = askInactive
+    askIdle = askIdle
+    askCreatingCourse = askCreatingCourse
+    askEditingCourse = askEditingCourse
+    askEditingTitle = askEditingTitle
+    askEditingDesc = askEditingDesc
+    askListingCourses = askListingCourses
+    askCreatingBlock = askCreatingBlock
+    askEditingBlock = askEditingBlock
+    askListingBlocks = askListingBlocks }

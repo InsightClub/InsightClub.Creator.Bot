@@ -146,9 +146,9 @@ let onUpdate getConnection storagePath ctx = async {
 
     let services = Services.get connection config storagePath creatorId
 
-    let commands = Commands.onMessage message
+    let dispatcher = Dispatcher.dispatchMessage message
 
-    let! state, _ = Core.update services commands state
+    let! state, _ = Core.update services dispatcher state
 
     let renderServices = getRenderServices connection creatorId
 
@@ -174,8 +174,10 @@ let onUpdate getConnection storagePath ctx = async {
     let! creatorId, _, state = State.get connection user.Id
 
     let services = Services.get connection config storagePath creatorId
-    let commands = Commands.onQuery query
-    let! state, effect = Core.update services commands state
+
+    let dispatcher = Dispatcher.dispatchCallbackQuery query
+
+    let! state, effect = Core.update services dispatcher state
 
     let effectContents, queryAnswer = Render.queryEffect effect
 
