@@ -212,22 +212,22 @@ type BotServices<'Effect, 'Result> =
 /// Initial state
 let initial = Inactive
 
-let private updateInactive callback = function
+let private updateInactive services = function
 | Some Inactive.Start ->
-  callback (Idle Idle.Started) None
+  services.callback (Idle Idle.Started) None
 
 | None ->
-  callback Inactive None
+  services.callback Inactive None
 
-let private updateIdle callback checkAnyCourse = function
+let private updateIdle services = function
 | Some Idle.Help ->
-  callback (Idle Idle.Helping) None
+  services.callback (Idle Idle.Helping) None
 
 | Some Idle.CreateCourse ->
-  callback (CreatingCourse CreatingCourse.Started) None
+  services.callback (CreatingCourse CreatingCourse.Started) None
 
 | Some (Idle.EditCourse count) ->
-  checkAnyCourse <|
+  services.checkAnyCourses <|
     fun any ->
       let state =
         if any then
@@ -235,53 +235,54 @@ let private updateIdle callback checkAnyCourse = function
         else
           Idle Idle.NoCourses
 
-      callback state None
+      services.callback state None
 
 | None ->
-  callback (Idle Idle.Error) None
+  services.callback (Idle Idle.Error) None
 
-let private updateCreatingCourse callback tryCreateCourse = function
+let private updateCreatingCourse services = function
 | Some CreatingCourse.Cancel ->
-  callback (Idle Idle.CreateCanceled) None
+  services.callback (Idle Idle.CreateCanceled) None
 
 | Some (CreatingCourse.CreateCourse title) ->
-  tryCreateCourse title <|
+  services.tryCreateCourse title <|
     function
     | Ok courseId ->
-      callback (EditingCourse (courseId, EditingCourse.CourseCreated)) None
+      services.callback
+        (EditingCourse (courseId, EditingCourse.CourseCreated))
+        None
 
     | Error error ->
       let newState =
         CreatingCourse (CreatingCourse.TitleError error)
 
-      callback newState None
+      services.callback newState None
 
 | None ->
-  callback (CreatingCourse CreatingCourse.Error) None
+  services.callback (CreatingCourse CreatingCourse.Error) None
 
-let private updateEditingCourse
-  callback getBlocksCount checkAnyBlock courseId = function
+let private updateEditingCourse services courseId = function
 | Some EditingCourse.EditTitle ->
     let newState =
       EditingTitle (courseId, EditingTitle.Started)
 
-    callback newState None
+    services.callback newState None
 
 | Some EditingCourse.EditDesc ->
-  callback (EditingDesc (courseId, EditingDesc.Started)) None
+  services.callback (EditingDesc (courseId, EditingDesc.Started)) None
 
 | Some EditingCourse.Exit ->
-  callback (Idle Idle.ExitedEditing) None
+  services.callback (Idle Idle.ExitedEditing) None
 
 | Some EditingCourse.AddBlock ->
-  getBlocksCount courseId <|
+  services.getBlocksCount courseId <|
     fun count ->
-      callback
+      services.callback
         (CreatingBlock (courseId, count, CreatingBlock.Started))
         None
 
 | Some (EditingCourse.EditBlock count) ->
-  checkAnyBlock courseId <|
+  services.checkAnyBlocks courseId <|
     fun any ->
       let state =
         if any then
@@ -289,63 +290,61 @@ let private updateEditingCourse
         else
           EditingCourse (courseId, EditingCourse.NoBlocks)
 
-      callback state None
+      services.callback state None
 
 | None ->
-  callback (EditingCourse (courseId, EditingCourse.Error)) None
+  services.callback (EditingCourse (courseId, EditingCourse.Error)) None
 
-let private updateEditingTitle
-  callback tryUpdateTitle courseId = function
+let private updateEditingTitle services courseId = function
 | Some EditingTitle.Cancel ->
-  callback (EditingCourse (courseId, EditingCourse.TitleCanceled)) None
+  services.callback (EditingCourse (courseId, EditingCourse.TitleCanceled)) None
 
 | Some (EditingTitle.SetTitle title) ->
-  tryUpdateTitle courseId title <|
+  services.tryUpdateTitle courseId title <|
     function
     | Ok () ->
       let newState =
         EditingCourse (courseId, EditingCourse.TitleSet)
 
-      callback newState None
+      services.callback newState None
 
     | Error error ->
       let newState =
         EditingTitle (courseId, EditingTitle.TitleError error)
 
-      callback newState None
+      services.callback newState None
 
 | None ->
   let newState =
     EditingTitle (courseId, EditingTitle.Error)
 
-  callback newState None
+  services.callback newState None
 
-let private updateEditingDesc
-  callback tryUpdateDesc courseId = function
+let private updateEditingDesc services courseId = function
 | Some EditingDesc.Cancel ->
-  callback (EditingCourse (courseId, EditingCourse.DescCanceled)) None
+  services.callback (EditingCourse (courseId, EditingCourse.DescCanceled)) None
 
 | Some (EditingDesc.SetDesc desc) ->
-  tryUpdateDesc courseId desc <|
+  services.tryUpdateDesc courseId desc <|
     function
     | true ->
       let newState =
         EditingCourse (courseId, EditingCourse.DescSet)
 
-      callback newState None
+      services.callback newState None
 
     | false ->
       let newState =
         EditingDesc (courseId, EditingDesc.DescTooLong)
 
-      callback newState None
+      services.callback newState None
 
 | None ->
-  callback (EditingDesc (courseId, EditingDesc.Error)) None
+  services.callback (EditingDesc (courseId, EditingDesc.Error)) None
 
-let private updateListingCourses callback getCoursesCount page count = function
+let private updateListingCourses services page count = function
 | Some (ListingCourses.Select courseId) ->
-  callback (EditingCourse (courseId, EditingCourse.Editing)) None
+  services.callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
 | Some (ListingCourses.Prev informMin) ->
   let state, effect =
@@ -354,10 +353,10 @@ let private updateListingCourses callback getCoursesCount page count = function
     else
       ListingCourses (page - 1, count, ListingCourses.Started), None
 
-  callback state effect
+  services.callback state effect
 
 | Some (ListingCourses.Next informMax) ->
-  getCoursesCount <|
+  services.getCoursesCount <|
     fun coursesCount ->
       let state, effect =
         if (page + 1) * count >= coursesCount then
@@ -365,24 +364,25 @@ let private updateListingCourses callback getCoursesCount page count = function
         else
           ListingCourses (page + 1, count, ListingCourses.Started), None
 
-      callback state effect
+      services.callback state effect
 
 | Some ListingCourses.Exit ->
-  callback (Idle Idle.EditCanceled) None
+  services.callback (Idle Idle.EditCanceled) None
 
 | None ->
-  callback (ListingCourses (page, count, ListingCourses.Error)) None
+  services.callback (ListingCourses (page, count, ListingCourses.Error)) None
 
-let private updateCreatingBlock
-  callback tryCreateBlock courseId blockIndex = function
+let private updateCreatingBlock services courseId blockIndex = function
 | Some CreatingBlock.Cancel ->
-  callback (EditingCourse (courseId, EditingCourse.NewBlockCanceled)) None
+  services.callback
+    (EditingCourse (courseId, EditingCourse.NewBlockCanceled))
+    None
 
 | Some (CreatingBlock.CreateBlock title) ->
-  tryCreateBlock courseId blockIndex title <|
+  services.tryCreateBlock courseId blockIndex title <|
     function
     | Some blockId ->
-      callback
+      services.callback
         ( EditingBlock
             ( courseId,
               blockId,
@@ -392,30 +392,22 @@ let private updateCreatingBlock
         None
 
     | None ->
-      callback
+      services.callback
         (CreatingBlock (courseId, blockIndex, CreatingBlock.TitleReserved))
         None
 
 | None ->
-  callback (CreatingBlock (courseId, blockIndex, CreatingBlock.Error)) None
+  services.callback
+    (CreatingBlock (courseId, blockIndex, CreatingBlock.Error))
+    None
 
 let private updateEditingBlock
-  callback
-  addContent
-  getBlockContents
-  getBlockInfoByIndex
-  getBlocksCount
-  cleanBlock
-  courseId
-  blockId
-  blockIndex
-  title
-  = function
+  services courseId blockId blockIndex title = function
 | Some EditingBlock.Back ->
-  callback (EditingCourse (courseId, EditingCourse.Editing)) None
+  services.callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
 | Some EditingBlock.Nothing ->
-  callback
+  services.callback
     ( EditingBlock
         ( courseId,
           blockId,
@@ -425,18 +417,18 @@ let private updateEditingBlock
     None
 
 | Some EditingBlock.InsertBefore ->
-  callback
+  services.callback
     (CreatingBlock (courseId, blockIndex, CreatingBlock.Started))
     None
 
 | Some EditingBlock.InsertAfter ->
-  callback
+  services.callback
     (CreatingBlock (courseId, blockIndex + 1, CreatingBlock.Started))
     None
 
 | Some (EditingBlock.Prev informMin) ->
   if blockIndex = 0 then
-    callback
+    services.callback
       ( EditingBlock
           ( courseId,
             blockId,
@@ -445,9 +437,9 @@ let private updateEditingBlock
             EditingBlock.Started ) )
       (Some informMin)
   else
-    getBlockInfoByIndex courseId (blockIndex - 1) <|
+    services.getBlockInfoByIndex courseId (blockIndex - 1) <|
       fun (blockId, title) ->
-        callback
+        services.callback
           ( EditingBlock
               ( courseId,
                 blockId,
@@ -457,10 +449,10 @@ let private updateEditingBlock
           None
 
 | Some (EditingBlock.Next informMax) ->
-  getBlocksCount courseId <|
+  services.getBlocksCount courseId <|
     fun count ->
       if blockIndex = count - 1 then
-        callback
+        services.callback
           ( EditingBlock
               ( courseId,
                 blockId,
@@ -469,9 +461,9 @@ let private updateEditingBlock
                 EditingBlock.Started ) )
           (Some informMax)
       else
-        getBlockInfoByIndex courseId (blockIndex + 1) <|
+        services.getBlockInfoByIndex courseId (blockIndex + 1) <|
           fun (blockId, title) ->
-            callback
+            services.callback
               ( EditingBlock
                   ( courseId,
                     blockId,
@@ -481,9 +473,9 @@ let private updateEditingBlock
               None
 
 | Some (EditingBlock.Show show) ->
-  getBlockContents blockId <|
+  services.getBlockContents blockId <|
     fun contents ->
-      callback
+      services.callback
         ( EditingBlock
             ( courseId,
               blockId,
@@ -491,11 +483,12 @@ let private updateEditingBlock
               title,
               EditingBlock.Started ) )
         (Some <| show contents)
+
 | Some (EditingBlock.Clean informEmpty) ->
-  cleanBlock blockId <|
+  services.cleanBlock blockId <|
     fun cleaned ->
       if cleaned then
-        callback
+        services.callback
           ( EditingBlock
               ( courseId,
                 blockId,
@@ -504,7 +497,7 @@ let private updateEditingBlock
                 EditingBlock.Cleaned ) )
           None
       else
-        callback
+        services.callback
           ( EditingBlock
               ( courseId,
                 blockId,
@@ -514,9 +507,9 @@ let private updateEditingBlock
           (Some <| informEmpty)
 
 | Some (EditingBlock.AddContent content) ->
-  addContent blockId content <|
+  services.addContent blockId content <|
     fun () ->
-      callback
+      services.callback
         ( EditingBlock
             ( courseId,
               blockId,
@@ -526,7 +519,7 @@ let private updateEditingBlock
         None
 
 | None ->
-  callback
+  services.callback
     ( EditingBlock
         ( courseId,
           blockId,
@@ -535,12 +528,11 @@ let private updateEditingBlock
           EditingBlock.Error ) )
     None
 
-let updateListingBlocks
-  callback getBlockInfo getBlocksCount courseId page count = function
+let updateListingBlocks services courseId page count = function
 | Some (ListingBlocks.Select blockId) ->
-  getBlockInfo blockId <|
+  services.getBlockInfo blockId <|
     fun (index, title) ->
-      callback
+      services.callback
         ( EditingBlock
             ( courseId,
               blockId,
@@ -566,10 +558,10 @@ let updateListingBlocks
           ListingBlocks.Started ),
         None
 
-  callback state effect
+  services.callback state effect
 
 | Some (ListingBlocks.Next informMax) ->
-  getBlocksCount courseId <|
+  services.getBlocksCount courseId <|
     fun blocksCount ->
       let state, effect =
         if (page + 1) * count >= blocksCount then
@@ -587,65 +579,55 @@ let updateListingBlocks
               ListingBlocks.Started ),
             None
 
-      callback state effect
+      services.callback state effect
 
 | Some ListingBlocks.Back ->
-  callback (EditingCourse (courseId, EditingCourse.BlockCanceled)) None
+  services.callback
+    (EditingCourse (courseId, EditingCourse.BlockCanceled))
+    None
 
 | None ->
-  callback (ListingBlocks (courseId, page, count, ListingBlocks.Error)) None
+  services.callback
+    (ListingBlocks (courseId, page, count, ListingBlocks.Error))
+    None
 
-let update services dispatcher =
-  let s = services
-  function
-  | Inactive ->
-    dispatcher.askInactive ()
-    |> updateInactive s.callback
+let update services dispatcher = function
+| Inactive ->
+  dispatcher.askInactive ()
+  |> updateInactive services
 
-  | Idle _ ->
-    dispatcher.askIdle ()
-    |> updateIdle s.callback s.checkAnyCourses
+| Idle _ ->
+  dispatcher.askIdle ()
+  |> updateIdle services
 
-  | CreatingCourse _ ->
-    dispatcher.askCreatingCourse ()
-    |> updateCreatingCourse s.callback s.tryCreateCourse
+| CreatingCourse _ ->
+  dispatcher.askCreatingCourse ()
+  |> updateCreatingCourse services
 
-  | EditingCourse (courseId, _) ->
-    dispatcher.askEditingCourse ()
-    |> updateEditingCourse
-      s.callback s.getBlocksCount s.checkAnyBlocks courseId
+| EditingCourse (courseId, _) ->
+  dispatcher.askEditingCourse ()
+  |> updateEditingCourse services courseId
 
-  | EditingTitle (courseId, _) ->
-    dispatcher.askEditingTitle ()
-    |> updateEditingTitle s.callback s.tryUpdateTitle courseId
+| EditingTitle (courseId, _) ->
+  dispatcher.askEditingTitle ()
+  |> updateEditingTitle services courseId
 
-  | EditingDesc (courseId, _) ->
-    dispatcher.askEditingDesc ()
-    |> updateEditingDesc s.callback s.tryUpdateDesc courseId
+| EditingDesc (courseId, _) ->
+  dispatcher.askEditingDesc ()
+  |> updateEditingDesc services courseId
 
-  | ListingCourses (page, count, _) ->
-    dispatcher.askListingCourses ()
-    |> updateListingCourses s.callback s.getCoursesCount page count
+| ListingCourses (page, count, _) ->
+  dispatcher.askListingCourses ()
+  |> updateListingCourses services page count
 
-  | CreatingBlock (courseId, lastIndex, _) ->
-    dispatcher.askCreatingBlock ()
-    |> updateCreatingBlock s.callback s.tryCreateBlock courseId lastIndex
+| CreatingBlock (courseId, lastIndex, _) ->
+  dispatcher.askCreatingBlock ()
+  |> updateCreatingBlock services courseId lastIndex
 
-  | EditingBlock (courseId, blockId, index, title, _) ->
-    dispatcher.askEditingBlock ()
-    |> updateEditingBlock
-      s.callback
-      s.addContent
-      s.getBlockContents
-      s.getBlockInfoByIndex
-      s.getBlocksCount
-      s.cleanBlock
-      courseId
-      blockId
-      index
-      title
+| EditingBlock (courseId, blockId, index, title, _) ->
+  dispatcher.askEditingBlock ()
+  |> updateEditingBlock services courseId blockId index title
 
-  | ListingBlocks (courseId, page, count, _) ->
-    dispatcher.askListingBlocks ()
-    |> updateListingBlocks
-      s.callback s.getBlockInfo s.getBlocksCount courseId page count
+| ListingBlocks (courseId, page, count, _) ->
+  dispatcher.askListingBlocks ()
+  |> updateListingBlocks services courseId page count
