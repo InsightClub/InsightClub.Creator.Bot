@@ -120,6 +120,11 @@ module ListingCourses =
     | Started
     | Error
 
+  type State =
+    { Page: Page
+      Count: Count
+      Msg: Msg }
+
 module CreatingBlock =
   type Command =
     | Cancel
@@ -129,6 +134,11 @@ module CreatingBlock =
     | Started
     | TitleReserved
     | Error
+
+  type State =
+    { CourseId: CourseId
+      Index: Index
+      Msg: Msg }
 
 module EditingBlock =
   type Command<'Effect> =
@@ -148,6 +158,13 @@ module EditingBlock =
     | Cleaned
     | Error
 
+  type State =
+    { CourseId: CourseId
+      BlockId: BlockId
+      Index: Index
+      Title: BlockTitle
+      Msg: Msg }
+
 module ListingBlocks =
   type Command<'Effect> =
     | Select of BlockId
@@ -159,6 +176,12 @@ module ListingBlocks =
     | Started
     | Error
 
+  type State =
+    { CourseId: CourseId
+      Page: Page
+      Count: Count
+      Msg: Msg }
+
 type BotState =
   | Inactive
   | Idle of Idle.Msg
@@ -166,10 +189,10 @@ type BotState =
   | EditingCourse of CourseId * EditingCourse.Msg
   | EditingTitle of CourseId * EditingTitle.Msg
   | EditingDesc of CourseId * EditingDesc.Msg
-  | ListingCourses of Page * Count * ListingCourses.Msg
-  | CreatingBlock of CourseId * Index * CreatingBlock.Msg
-  | EditingBlock of CourseId * BlockId * Index * BlockTitle * EditingBlock.Msg
-  | ListingBlocks of CourseId * Page * Count * ListingBlocks.Msg
+  | ListingCourses of ListingCourses.State
+  | CreatingBlock of CreatingBlock.State
+  | EditingBlock of EditingBlock.State
+  | ListingBlocks of ListingBlocks.State
 
 type BotPort<'Command> = unit -> 'Command option
 
@@ -229,13 +252,18 @@ let private updateIdle services = function
 | Some (Idle.EditCourse count) ->
   services.checkAnyCourses <|
     fun any ->
-      let state =
+      let newState =
         if any then
-          ListingCourses (0, count, ListingCourses.Started)
+          let newSubState : ListingCourses.State =
+            { Page = 0
+              Count = count
+              Msg = ListingCourses.Started}
+
+          ListingCourses newSubState
         else
           Idle Idle.NoCourses
 
-      services.callback state None
+      services.callback newState None
 
 | None ->
   services.callback (Idle Idle.Error) None
@@ -277,18 +305,30 @@ let private updateEditingCourse services courseId = function
 | Some EditingCourse.AddBlock ->
   services.getBlocksCount courseId <|
     fun count ->
-      services.callback
-        (CreatingBlock (courseId, count, CreatingBlock.Started))
-        None
+      let newSubState : CreatingBlock.State =
+        { CourseId = courseId
+          Index = count
+          Msg = CreatingBlock.Started }
+
+      services.callback (CreatingBlock newSubState) None
 
 | Some (EditingCourse.EditBlock count) ->
   services.checkAnyBlocks courseId <|
     fun any ->
       let state =
         if any then
-          ListingBlocks (courseId, 0, count, ListingBlocks.Started)
+          let newSubState : ListingBlocks.State =
+            { CourseId = courseId
+              Page = 0
+              Count = count
+              Msg = ListingBlocks.Started }
+
+          ListingBlocks newSubState
         else
-          EditingCourse (courseId, EditingCourse.NoBlocks)
+          let newSubState =
+            courseId, EditingCourse.NoBlocks
+
+          EditingCourse newSubState
 
       services.callback state None
 
@@ -342,254 +382,264 @@ let private updateEditingDesc services courseId = function
 | None ->
   services.callback (EditingDesc (courseId, EditingDesc.Error)) None
 
-let private updateListingCourses services page count = function
+let private updateListingCourses services (subState: ListingCourses.State)
+  = function
 | Some (ListingCourses.Select courseId) ->
   services.callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
 | Some (ListingCourses.Prev informMin) ->
-  let state, effect =
-    if page = 0 then
-      ListingCourses (page, count, ListingCourses.Started), Some informMin
-    else
-      ListingCourses (page - 1, count, ListingCourses.Started), None
+  let newState, effect =
+    if subState.Page = 0 then
+      let newSubState =
+        { subState with
+            Msg = ListingCourses.Started }
 
-  services.callback state effect
+      ListingCourses newSubState, Some informMin
+    else
+      let newSubState =
+        { subState with
+            Page = subState.Page - 1
+            Msg = ListingCourses.Started }
+
+      ListingCourses newSubState, None
+
+  services.callback newState effect
 
 | Some (ListingCourses.Next informMax) ->
   services.getCoursesCount <|
     fun coursesCount ->
-      let state, effect =
-        if (page + 1) * count >= coursesCount then
-          ListingCourses (page, count, ListingCourses.Started), Some informMax
-        else
-          ListingCourses (page + 1, count, ListingCourses.Started), None
+      let newState, effect =
+        if (subState.Page + 1) * subState.Count >= coursesCount then
+          let newSubState =
+            { subState with
+                Msg = ListingCourses.Started }
 
-      services.callback state effect
+          ListingCourses newSubState, Some informMax
+        else
+          let newSubState =
+            { subState with
+                Page = subState.Page + 1
+                Msg = ListingCourses.Started }
+
+          ListingCourses newSubState, None
+
+      services.callback newState effect
 
 | Some ListingCourses.Exit ->
   services.callback (Idle Idle.EditCanceled) None
 
 | None ->
-  services.callback (ListingCourses (page, count, ListingCourses.Error)) None
+  let newSubState =
+    { subState with
+        Msg = ListingCourses.Error }
 
-let private updateCreatingBlock services courseId blockIndex = function
+  services.callback (ListingCourses newSubState) None
+
+let private updateCreatingBlock services (subState: CreatingBlock.State)
+  = function
 | Some CreatingBlock.Cancel ->
-  services.callback
-    (EditingCourse (courseId, EditingCourse.NewBlockCanceled))
-    None
+  let newSubState =
+    subState.CourseId, EditingCourse.NewBlockCanceled
+
+  services.callback (EditingCourse newSubState) None
 
 | Some (CreatingBlock.CreateBlock title) ->
-  services.tryCreateBlock courseId blockIndex title <|
+  services.tryCreateBlock subState.CourseId subState.Index title <|
     function
     | Some blockId ->
-      services.callback
-        ( EditingBlock
-            ( courseId,
-              blockId,
-              blockIndex,
-              title,
-              EditingBlock.Started ) )
-        None
+      let newSubState : EditingBlock.State =
+        { CourseId = subState.CourseId
+          BlockId = blockId
+          Index = subState.Index
+          Title = title
+          Msg = EditingBlock.Started }
+
+      services.callback (EditingBlock newSubState) None
 
     | None ->
-      services.callback
-        (CreatingBlock (courseId, blockIndex, CreatingBlock.TitleReserved))
-        None
+      let newSubState =
+        { subState with
+            Msg = CreatingBlock.TitleReserved }
+
+      services.callback (CreatingBlock newSubState) None
 
 | None ->
-  services.callback
-    (CreatingBlock (courseId, blockIndex, CreatingBlock.Error))
-    None
+  let newSubState =
+    { subState with
+        Msg = CreatingBlock.Error }
 
-let private updateEditingBlock
-  services courseId blockId blockIndex title = function
+  services.callback (CreatingBlock newSubState) None
+
+let private updateEditingBlock services (subState: EditingBlock.State)
+  = function
 | Some EditingBlock.Back ->
-  services.callback (EditingCourse (courseId, EditingCourse.Editing)) None
+  let newSubState =
+     subState.CourseId, EditingCourse.Editing
+
+  services.callback (EditingCourse newSubState) None
 
 | Some EditingBlock.Nothing ->
-  services.callback
-    ( EditingBlock
-        ( courseId,
-          blockId,
-          blockIndex,
-          title,
-          EditingBlock.Started) )
-    None
+  services.callback (EditingBlock subState) None
 
 | Some EditingBlock.InsertBefore ->
-  services.callback
-    (CreatingBlock (courseId, blockIndex, CreatingBlock.Started))
-    None
+  let subState : CreatingBlock.State =
+    { CourseId = subState.CourseId
+      Index = subState.Index
+      Msg = CreatingBlock.Started }
+
+  services.callback (CreatingBlock subState) None
 
 | Some EditingBlock.InsertAfter ->
-  services.callback
-    (CreatingBlock (courseId, blockIndex + 1, CreatingBlock.Started))
-    None
+  let subState : CreatingBlock.State =
+    { CourseId = subState.CourseId
+      Index = subState.Index + 1
+      Msg = CreatingBlock.Started }
+
+  services.callback (CreatingBlock subState) None
 
 | Some (EditingBlock.Prev informMin) ->
-  if blockIndex = 0 then
-    services.callback
-      ( EditingBlock
-          ( courseId,
-            blockId,
-            blockIndex,
-            title,
-            EditingBlock.Started ) )
-      (Some informMin)
+  if subState.Index = 0 then
+    let newSubState =
+      { subState with
+          Msg = EditingBlock.Started }
+
+    services.callback (EditingBlock newSubState) (Some informMin)
+
   else
-    services.getBlockInfoByIndex courseId (blockIndex - 1) <|
+    services.getBlockInfoByIndex subState.CourseId (subState.Index - 1) <|
       fun (blockId, title) ->
-        services.callback
-          ( EditingBlock
-              ( courseId,
-                blockId,
-                blockIndex - 1,
-                title,
-                EditingBlock.Started ) )
-          None
+        let newSubState =
+          { subState with
+              BlockId = blockId
+              Index = subState.Index - 1
+              Title = title
+              Msg = EditingBlock.Started }
+
+        services.callback (EditingBlock newSubState) None
 
 | Some (EditingBlock.Next informMax) ->
-  services.getBlocksCount courseId <|
+  services.getBlocksCount subState.CourseId <|
     fun count ->
-      if blockIndex = count - 1 then
-        services.callback
-          ( EditingBlock
-              ( courseId,
-                blockId,
-                blockIndex,
-                title,
-                EditingBlock.Started ) )
-          (Some informMax)
+      if subState.Index = count - 1 then
+        let newSubState =
+          { subState with
+              Msg = EditingBlock.Started }
+
+        services.callback (EditingBlock newSubState) (Some informMax)
       else
-        services.getBlockInfoByIndex courseId (blockIndex + 1) <|
+        services.getBlockInfoByIndex subState.CourseId (subState.Index + 1) <|
           fun (blockId, title) ->
-            services.callback
-              ( EditingBlock
-                  ( courseId,
-                    blockId,
-                    blockIndex + 1,
-                    title,
-                    EditingBlock.Started ) )
-              None
+            let newSubState =
+              { subState with
+                  BlockId = blockId
+                  Index = subState.Index + 1
+                  Title = title
+                  Msg = EditingBlock.Started }
+
+            services.callback (EditingBlock newSubState) None
 
 | Some (EditingBlock.Show show) ->
-  services.getBlockContents blockId <|
+  services.getBlockContents subState.BlockId <|
     fun contents ->
-      services.callback
-        ( EditingBlock
-            ( courseId,
-              blockId,
-              blockIndex,
-              title,
-              EditingBlock.Started ) )
-        (Some <| show contents)
+      let newSubState =
+        { subState with
+            Msg = EditingBlock.Started }
+
+      services.callback (EditingBlock newSubState) (Some <| show contents)
 
 | Some (EditingBlock.Clean informEmpty) ->
-  services.cleanBlock blockId <|
+  services.cleanBlock subState.BlockId <|
     fun cleaned ->
-      if cleaned then
-        services.callback
-          ( EditingBlock
-              ( courseId,
-                blockId,
-                blockIndex,
-                title,
-                EditingBlock.Cleaned ) )
-          None
-      else
-        services.callback
-          ( EditingBlock
-              ( courseId,
-                blockId,
-                blockIndex,
-                title,
-                EditingBlock.Cleaned ) )
-          (Some <| informEmpty)
+      let newSubState =
+        { subState with
+            Msg = EditingBlock.Cleaned }
+
+      let effect =
+        if cleaned
+        then None
+        else Some informEmpty
+
+      services.callback (EditingBlock newSubState) effect
 
 | Some (EditingBlock.AddContent content) ->
-  services.addContent blockId content <|
+  services.addContent subState.BlockId content <|
     fun () ->
-      services.callback
-        ( EditingBlock
-            ( courseId,
-              blockId,
-              blockIndex,
-              title,
-              EditingBlock.ContentAdded content ) )
-        None
+      let newSubState =
+        { subState with
+            Msg = EditingBlock.ContentAdded content }
+
+      services.callback (EditingBlock newSubState) None
 
 | None ->
-  services.callback
-    ( EditingBlock
-        ( courseId,
-          blockId,
-          blockIndex,
-          title,
-          EditingBlock.Error ) )
-    None
+  let newSubState =
+    { subState with
+        Msg = EditingBlock.Error }
 
-let updateListingBlocks services courseId page count = function
+  services.callback (EditingBlock newSubState) None
+
+let updateListingBlocks services (subState: ListingBlocks.State) = function
 | Some (ListingBlocks.Select blockId) ->
   services.getBlockInfo blockId <|
     fun (index, title) ->
-      services.callback
-        ( EditingBlock
-            ( courseId,
-              blockId,
-              index,
-              title,
-              EditingBlock.Started ) )
-        None
+      let newSubState : EditingBlock.State =
+        { CourseId = subState.CourseId
+          BlockId = blockId
+          Index = index
+          Title = title
+          Msg = EditingBlock.Started }
+
+      services.callback (EditingBlock newSubState) None
 
 | Some (ListingBlocks.Prev informMin) ->
-  let state, effect =
-    if page = 0 then
-      ListingBlocks
-        ( courseId,
-          page,
-          count,
-          ListingBlocks.Started ),
-        Some informMin
-    else
-      ListingBlocks
-        ( courseId,
-          page - 1,
-          count,
-          ListingBlocks.Started ),
-        None
+  let newState, effect =
+    if subState.Page = 0 then
+      let newSubState =
+        { subState with
+            Msg = ListingBlocks.Started }
 
-  services.callback state effect
+      ListingBlocks newSubState, Some informMin
+    else
+      let newSubState =
+        { subState with
+            Page = subState.Page - 1
+            Msg = ListingBlocks.Started }
+
+      ListingBlocks newSubState, None
+
+  services.callback newState effect
 
 | Some (ListingBlocks.Next informMax) ->
-  services.getBlocksCount courseId <|
+  services.getBlocksCount subState.CourseId <|
     fun blocksCount ->
-      let state, effect =
-        if (page + 1) * count >= blocksCount then
-          ListingBlocks
-            ( courseId,
-              page,
-              count,
-              ListingBlocks.Started ),
-            Some informMax
-        else
-          ListingBlocks
-            ( courseId,
-              page + 1,
-              count,
-              ListingBlocks.Started ),
-            None
+      let newState, effect =
+        if (subState.Page + 1) * subState.Count >= blocksCount then
+          let newSubState =
+            { subState with
+                Msg = ListingBlocks.Started }
 
-      services.callback state effect
+          ListingBlocks newSubState, Some informMax
+        else
+          let newSubState =
+            { subState with
+                Page = subState.Page + 1
+                Msg = ListingBlocks.Started }
+
+          ListingBlocks newSubState, None
+
+      services.callback newState effect
 
 | Some ListingBlocks.Back ->
-  services.callback
-    (EditingCourse (courseId, EditingCourse.BlockCanceled))
-    None
+  let newSubState =
+    subState.CourseId, EditingCourse.BlockCanceled
+
+  services.callback (EditingCourse newSubState) None
 
 | None ->
-  services.callback
-    (ListingBlocks (courseId, page, count, ListingBlocks.Error))
-    None
+  let newSubState =
+    { subState with
+        Msg = ListingBlocks.Error }
+
+  services.callback (ListingBlocks newSubState) None
 
 let update services dispatcher = function
 | Inactive ->
@@ -616,18 +666,18 @@ let update services dispatcher = function
   dispatcher.askEditingDesc ()
   |> updateEditingDesc services courseId
 
-| ListingCourses (page, count, _) ->
+| ListingCourses subState ->
   dispatcher.askListingCourses ()
-  |> updateListingCourses services page count
+  |> updateListingCourses services subState
 
-| CreatingBlock (courseId, lastIndex, _) ->
+| CreatingBlock subState ->
   dispatcher.askCreatingBlock ()
-  |> updateCreatingBlock services courseId lastIndex
+  |> updateCreatingBlock services subState
 
-| EditingBlock (courseId, blockId, index, title, _) ->
+| EditingBlock subState ->
   dispatcher.askEditingBlock ()
-  |> updateEditingBlock services courseId blockId index title
+  |> updateEditingBlock services subState
 
-| ListingBlocks (courseId, page, count, _) ->
+| ListingBlocks subState ->
   dispatcher.askListingBlocks ()
-  |> updateListingBlocks services courseId page count
+  |> updateListingBlocks services subState

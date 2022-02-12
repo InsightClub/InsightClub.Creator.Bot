@@ -416,11 +416,15 @@ let state services user state = async {
       Some
         [ [ button Button.cancel Dispatcher.cancel ] ]
 
-  | ListingCourses (page, count, msg) ->
-    let! courses = services.getCourses page count
+  | ListingCourses subState ->
+    let! courses =
+      services.getCourses subState.Page subState.Count
+
+    let coursesCount =
+      List.length courses
 
     return
-      listingCoursesMsg page count (List.length courses) msg,
+      listingCoursesMsg subState.Page subState.Count coursesCount subState.Msg,
       Some
         [ for (id, title) in courses do
             yield [ button title $"{Dispatcher.edit} {id}" ]
@@ -430,14 +434,14 @@ let state services user state = async {
 
           yield [ button Button.exit Dispatcher.exit ] ]
 
-  | CreatingBlock (_, _, msg) ->
+  | CreatingBlock subState ->
     return
-      creatingBlockMsg msg,
+      creatingBlockMsg subState.Msg,
       Some [ [ button Button.cancel Dispatcher.cancel ] ]
 
-  | EditingBlock (_, _, _, title, msg) ->
+  | EditingBlock subState ->
     return
-      editingBlockMsg title msg,
+      editingBlockMsg subState.Title subState.Msg,
       Some
         [ [ button Button.insert    Dispatcher.nothing ]
           [ button Button.before    Dispatcher.before
@@ -449,16 +453,20 @@ let state services user state = async {
             button Button.clean     Dispatcher.clean   ]
           [ button Button.back      Dispatcher.back    ] ]
 
-  | ListingBlocks (courseId, page, count, msg) ->
-    let! blocks = services.getBlocks courseId page count
+  | ListingBlocks subState ->
+    let! blocks =
+      services.getBlocks subState.CourseId subState.Page subState.Count
+
+    let blocksCount =
+      List.length blocks
 
     return
-      listingBlocksMsg page count (List.length blocks) msg,
+      listingBlocksMsg subState.Page subState.Count blocksCount subState.Msg,
       Some
         [ for (i, (id, title)) in List.indexed blocks do
             yield
               [ button
-                  $"{page * count + i + 1}. {title}"
+                  $"{subState.Page * subState.Count + i + 1}. {title}"
                   $"{Dispatcher.edit} {id}" ]
 
           yield [ button Button.prev Dispatcher.prev
