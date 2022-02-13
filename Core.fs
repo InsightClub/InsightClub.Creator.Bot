@@ -112,8 +112,8 @@ module EditingDesc =
 module ListingCourses =
   type Command<'Effect> =
     | Select of CourseId
-    | Prev of informMin: 'Effect
-    | Next of informMax: 'Effect
+    | Prev of beginningReached: 'Effect
+    | Next of endingReached: 'Effect
     | Exit
 
   type Msg =
@@ -146,10 +146,10 @@ module EditingBlock =
     | Nothing
     | InsertBefore
     | InsertAfter
-    | Prev of informMin: 'Effect
-    | Next of informMax: 'Effect
+    | Prev of beginningReached: 'Effect
+    | Next of endingReached: 'Effect
     | Show of showContent: (Content list -> 'Effect)
-    | Clean of informEmpty: 'Effect
+    | Clean of blockEmpty: 'Effect
     | AddContent of Content
 
   type Msg =
@@ -168,8 +168,8 @@ module EditingBlock =
 module ListingBlocks =
   type Command<'Effect> =
     | Select of BlockId
-    | Prev of informMin: 'Effect
-    | Next of informMax: 'Effect
+    | Prev of beginningReached: 'Effect
+    | Next of endingReached: 'Effect
     | Back
 
   type Msg =
@@ -337,28 +337,31 @@ let private updateEditingCourse services courseId = function
 
 let private updateEditingTitle services courseId = function
 | Some EditingTitle.Cancel ->
-  services.callback (EditingCourse (courseId, EditingCourse.TitleCanceled)) None
+  let newSubState =
+    courseId, EditingCourse.TitleCanceled
+
+  services.callback (EditingCourse newSubState) None
 
 | Some (EditingTitle.SetTitle title) ->
   services.tryUpdateTitle courseId title <|
     function
     | Ok () ->
-      let newState =
-        EditingCourse (courseId, EditingCourse.TitleSet)
+      let newSubState =
+        courseId, EditingCourse.TitleSet
 
-      services.callback newState None
+      services.callback (EditingCourse newSubState) None
 
     | Error error ->
-      let newState =
-        EditingTitle (courseId, EditingTitle.TitleError error)
+      let newSubState =
+         courseId, EditingTitle.TitleError error
 
-      services.callback newState None
+      services.callback (EditingTitle newSubState) None
 
 | None ->
-  let newState =
-    EditingTitle (courseId, EditingTitle.Error)
+  let newSubState =
+     courseId, EditingTitle.Error
 
-  services.callback newState None
+  services.callback (EditingTitle newSubState) None
 
 let private updateEditingDesc services courseId = function
 | Some EditingDesc.Cancel ->
@@ -387,14 +390,14 @@ let private updateListingCourses services (subState: ListingCourses.State)
 | Some (ListingCourses.Select courseId) ->
   services.callback (EditingCourse (courseId, EditingCourse.Editing)) None
 
-| Some (ListingCourses.Prev informMin) ->
+| Some (ListingCourses.Prev beginningReached) ->
   let newState, effect =
     if subState.Page = 0 then
       let newSubState =
         { subState with
             Msg = ListingCourses.Started }
 
-      ListingCourses newSubState, Some informMin
+      ListingCourses newSubState, Some beginningReached
     else
       let newSubState =
         { subState with
@@ -405,7 +408,7 @@ let private updateListingCourses services (subState: ListingCourses.State)
 
   services.callback newState effect
 
-| Some (ListingCourses.Next informMax) ->
+| Some (ListingCourses.Next endingReached) ->
   services.getCoursesCount <|
     fun coursesCount ->
       let newState, effect =
@@ -414,7 +417,7 @@ let private updateListingCourses services (subState: ListingCourses.State)
             { subState with
                 Msg = ListingCourses.Started }
 
-          ListingCourses newSubState, Some informMax
+          ListingCourses newSubState, Some endingReached
         else
           let newSubState =
             { subState with
@@ -497,13 +500,13 @@ let private updateEditingBlock services (subState: EditingBlock.State)
 
   services.callback (CreatingBlock subState) None
 
-| Some (EditingBlock.Prev informMin) ->
+| Some (EditingBlock.Prev beginningReached) ->
   if subState.Index = 0 then
     let newSubState =
       { subState with
           Msg = EditingBlock.Started }
 
-    services.callback (EditingBlock newSubState) (Some informMin)
+    services.callback (EditingBlock newSubState) (Some beginningReached)
 
   else
     services.getBlockInfoByIndex subState.CourseId (subState.Index - 1) <|
@@ -517,7 +520,7 @@ let private updateEditingBlock services (subState: EditingBlock.State)
 
         services.callback (EditingBlock newSubState) None
 
-| Some (EditingBlock.Next informMax) ->
+| Some (EditingBlock.Next endingReached) ->
   services.getBlocksCount subState.CourseId <|
     fun count ->
       if subState.Index = count - 1 then
@@ -525,7 +528,7 @@ let private updateEditingBlock services (subState: EditingBlock.State)
           { subState with
               Msg = EditingBlock.Started }
 
-        services.callback (EditingBlock newSubState) (Some informMax)
+        services.callback (EditingBlock newSubState) (Some endingReached)
       else
         services.getBlockInfoByIndex subState.CourseId (subState.Index + 1) <|
           fun (blockId, title) ->
@@ -538,16 +541,16 @@ let private updateEditingBlock services (subState: EditingBlock.State)
 
             services.callback (EditingBlock newSubState) None
 
-| Some (EditingBlock.Show show) ->
+| Some (EditingBlock.Show showContents) ->
   services.getBlockContents subState.BlockId <|
     fun contents ->
       let newSubState =
         { subState with
             Msg = EditingBlock.Started }
 
-      services.callback (EditingBlock newSubState) (Some <| show contents)
+      services.callback (EditingBlock newSubState) (Some <| showContents contents)
 
-| Some (EditingBlock.Clean informEmpty) ->
+| Some (EditingBlock.Clean blockEmpty) ->
   services.cleanBlock subState.BlockId <|
     fun cleaned ->
       let newSubState =
@@ -557,7 +560,7 @@ let private updateEditingBlock services (subState: EditingBlock.State)
       let effect =
         if cleaned
         then None
-        else Some informEmpty
+        else Some blockEmpty
 
       services.callback (EditingBlock newSubState) effect
 
@@ -590,14 +593,14 @@ let updateListingBlocks services (subState: ListingBlocks.State) = function
 
       services.callback (EditingBlock newSubState) None
 
-| Some (ListingBlocks.Prev informMin) ->
+| Some (ListingBlocks.Prev beginningReached) ->
   let newState, effect =
     if subState.Page = 0 then
       let newSubState =
         { subState with
             Msg = ListingBlocks.Started }
 
-      ListingBlocks newSubState, Some informMin
+      ListingBlocks newSubState, Some beginningReached
     else
       let newSubState =
         { subState with
@@ -608,7 +611,7 @@ let updateListingBlocks services (subState: ListingBlocks.State) = function
 
   services.callback newState effect
 
-| Some (ListingBlocks.Next informMax) ->
+| Some (ListingBlocks.Next endingReached) ->
   services.getBlocksCount subState.CourseId <|
     fun blocksCount ->
       let newState, effect =
@@ -617,7 +620,7 @@ let updateListingBlocks services (subState: ListingBlocks.State) = function
             { subState with
                 Msg = ListingBlocks.Started }
 
-          ListingBlocks newSubState, Some informMax
+          ListingBlocks newSubState, Some endingReached
         else
           let newSubState =
             { subState with

@@ -11,9 +11,9 @@ type PhotoSize = Types.PhotoSize
 
 type QueryEffect =
   | ShowContent of Content list
-  | InformMin
-  | InformMax
-  | InformEmpty
+  | BeginningReached
+  | EndingReached
+  | BlockEmpty
 
 let start = "/start"
 let help = "/help"
@@ -175,8 +175,8 @@ let dispatchCallbackQuery query =
   let askListingCourses () =
     match query with
     | ParamQ edit id -> Some <| ListingCourses.Select id
-    | CommandQ prev  -> Some <| ListingCourses.Prev QueryEffect.InformMin
-    | CommandQ next  -> Some <| ListingCourses.Next QueryEffect.InformMax
+    | CommandQ prev  -> Some <| ListingCourses.Prev QueryEffect.BeginningReached
+    | CommandQ next  -> Some <| ListingCourses.Next QueryEffect.EndingReached
     | CommandQ exit  -> Some ListingCourses.Exit
     | _              -> None
 
@@ -191,17 +191,17 @@ let dispatchCallbackQuery query =
     | CommandQ nothing -> Some EditingBlock.Nothing
     | CommandQ before  -> Some EditingBlock.InsertBefore
     | CommandQ after   -> Some EditingBlock.InsertAfter
-    | CommandQ prev    -> Some <| EditingBlock.Prev QueryEffect.InformMin
-    | CommandQ next    -> Some <| EditingBlock.Next QueryEffect.InformMax
-    | CommandQ clean   -> Some <| EditingBlock.Clean QueryEffect.InformEmpty
+    | CommandQ prev    -> Some <| EditingBlock.Prev QueryEffect.BeginningReached
+    | CommandQ next    -> Some <| EditingBlock.Next QueryEffect.EndingReached
+    | CommandQ clean   -> Some <| EditingBlock.Clean QueryEffect.BlockEmpty
     | CommandQ show    -> Some <| EditingBlock.Show QueryEffect.ShowContent
     | _                -> None
 
   let askListingBlocks () =
     match query with
     | ParamQ edit id -> Some <| ListingBlocks.Select id
-    | CommandQ prev  -> Some <| ListingBlocks.Prev QueryEffect.InformMin
-    | CommandQ next  -> Some <| ListingBlocks.Next QueryEffect.InformMax
+    | CommandQ prev  -> Some <| ListingBlocks.Prev QueryEffect.BeginningReached
+    | CommandQ next  -> Some <| ListingBlocks.Next QueryEffect.EndingReached
     | CommandQ back  -> Some ListingBlocks.Back
     | _              -> None
 

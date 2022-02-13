@@ -481,13 +481,13 @@ let queryEffect = function
 | Some (Dispatcher.ShowContent contents) ->
   contents, None
 
-| Some Dispatcher.InformMin ->
+| Some Dispatcher.BeginningReached ->
   [ ], Some "Вы дошли до начала."
 
-| Some Dispatcher.InformMax ->
+| Some Dispatcher.EndingReached ->
   [ ], Some "Вы дошли до конца."
 
-| Some Dispatcher.InformEmpty ->
+| Some Dispatcher.BlockEmpty ->
   [ ], Some "Очищение не требуется. Блок пуст."
 
 | None ->
