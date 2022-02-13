@@ -92,7 +92,7 @@ let dispatchMessage message : BotDispatcher<unit> =
     match message with
     | Command help -> Some Idle.Help
     | Command new' -> Some Idle.CreateCourse
-    | Command edit -> Some <| Idle.EditCourse 5
+    | Command edit -> Some Idle.EditCourse
     | _            -> None
 
   let askCreatingCourse () =
@@ -159,7 +159,7 @@ let dispatchCallbackQuery query =
     | CommandQ desc  -> Some EditingCourse.EditDesc
     | CommandQ exit  -> Some EditingCourse.Exit
     | CommandQ add   -> Some EditingCourse.AddBlock
-    | CommandQ edit  -> Some <| EditingCourse.EditBlock 5
+    | CommandQ edit  -> Some EditingCourse.EditBlock
     | _              -> None
 
   let askEditingTitle () =

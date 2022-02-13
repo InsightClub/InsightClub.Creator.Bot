@@ -48,7 +48,7 @@ module Idle =
   type Command =
     | Help
     | CreateCourse
-    | EditCourse of Count
+    | EditCourse
 
   type Msg =
     | Started
@@ -74,7 +74,7 @@ module EditingCourse =
     | EditTitle
     | EditDesc
     | AddBlock
-    | EditBlock of Count
+    | EditBlock
     | Exit
 
   type Msg =
@@ -235,6 +235,8 @@ type BotServices<'Effect, 'Result> =
 /// Initial state
 let initial = Inactive
 
+let private coursesPerPage = 5
+
 let private updateInactive services = function
 | Some Inactive.Start ->
   services.callback (Idle Idle.Started) None
@@ -249,14 +251,14 @@ let private updateIdle services = function
 | Some Idle.CreateCourse ->
   services.callback (CreatingCourse CreatingCourse.Started) None
 
-| Some (Idle.EditCourse count) ->
+| Some Idle.EditCourse ->
   services.checkAnyCourses <|
     fun any ->
       let newState =
         if any then
           let newSubState : ListingCourses.State =
             { Page = 0
-              Count = count
+              Count = coursesPerPage
               Msg = ListingCourses.Started}
 
           ListingCourses newSubState
@@ -312,7 +314,7 @@ let private updateEditingCourse services courseId = function
 
       services.callback (CreatingBlock newSubState) None
 
-| Some (EditingCourse.EditBlock count) ->
+| Some EditingCourse.EditBlock ->
   services.checkAnyBlocks courseId <|
     fun any ->
       let state =
@@ -320,7 +322,7 @@ let private updateEditingCourse services courseId = function
           let newSubState : ListingBlocks.State =
             { CourseId = courseId
               Page = 0
-              Count = count
+              Count = coursesPerPage
               Msg = ListingBlocks.Started }
 
           ListingBlocks newSubState
