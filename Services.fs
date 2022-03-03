@@ -6,9 +6,6 @@ open Funogram.Telegram
 
 
 let get connection config storagePath creatorId =
-  let callback state effect =
-    Async.singleton (state, effect)
-
   let tryCreateCourse courseTitle callback = async {
     let! courseIdOption =
       Repo.tryCreateCourse connection creatorId courseTitle
@@ -113,8 +110,7 @@ let get connection config storagePath creatorId =
 
     return! callback (count > 0) }
 
-  { callback = callback
-    tryCreateCourse = tryCreateCourse
+  { tryCreateCourse = tryCreateCourse
     tryUpdateTitle = tryUpdateTitle
     tryUpdateDesc = tryUpdateDesc
     checkAnyCourses = checkAnyCourses

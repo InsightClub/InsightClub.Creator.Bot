@@ -148,7 +148,9 @@ let onUpdate getConnection storagePath ctx = async {
 
     let dispatcher = Dispatcher.dispatchMessage message
 
-    let! state, _ = Core.update services dispatcher state
+    let return' state _ = Async.singleton state
+
+    let! state = Core.update return' dispatcher services state
 
     let renderServices = getRenderServices connection creatorId
 
@@ -177,7 +179,9 @@ let onUpdate getConnection storagePath ctx = async {
 
     let dispatcher = Dispatcher.dispatchCallbackQuery query
 
-    let! state, effect = Core.update services dispatcher state
+    let return' state effect = Async.singleton (state, effect)
+
+    let! state, effect = Core.update return' dispatcher services state
 
     let effectContents, queryAnswer = Render.queryEffect effect
 
