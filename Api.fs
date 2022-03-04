@@ -148,7 +148,7 @@ let onUpdate getConnection storagePath ctx = async {
 
     let dispatcher = Dispatcher.dispatchMessage message
 
-    let return' state _ = Async.singleton state
+    let return' = Async.singleton >> always
 
     let! state = Core.update return' dispatcher services state
 
