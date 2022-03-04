@@ -214,7 +214,7 @@ type Service<'Param, 'Result> =
 type Service<'Result> =
   Service<unit, 'Result>
 
-type BotServices<'Effect, 'Result> =
+type BotServices<'Result> =
   { tryCreateCourse:
       CourseTitle -> Service<Result<CourseId, TitleError>, 'Result>
 
