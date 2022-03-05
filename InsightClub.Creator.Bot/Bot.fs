@@ -146,7 +146,6 @@ module CreatingBlock =
 module EditingBlock =
   type Command<'Effect> =
     | Back
-    | Nothing
     | InsertBefore
     | InsertAfter
     | Prev of beginningReached: 'Effect
@@ -185,6 +184,8 @@ module ListingBlocks =
       Count: Count
       Msg: Msg }
 
+type Command = Ignore
+
 type State =
   | Inactive
   | Idle of Idle.Msg
@@ -200,7 +201,8 @@ type State =
 type Port<'Command> = unit -> 'Command option
 
 type Dispatcher<'Effect> =
-  { askInactive: Port<Inactive.Command>
+  { askGlobal: Port<Command>
+    askInactive: Port<Inactive.Command>
     askIdle: Port<Idle.Command>
     askCreatingCourse: Port<CreatingCourse.Command>
     askEditingCourse: Port<EditingCourse.Command>
@@ -523,9 +525,6 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
 
   return' |> onlyState newState
 
-| Some EditingBlock.Nothing ->
-  return' |> onlyState (EditingBlock subState)
-
 | Some EditingBlock.InsertBefore ->
   let newState =
     CreatingBlock
@@ -694,7 +693,7 @@ let updateListingBlocks
 
   return' |> onlyState newState
 
-let update return' dispatcher services = function
+let private updateLocal return' dispatcher services = function
 | Inactive ->
   dispatcher.askInactive ()
   |> updateInactive
@@ -735,3 +734,11 @@ let update return' dispatcher services = function
 | ListingBlocks subState ->
   dispatcher.askListingBlocks ()
   |> updateListingBlocks return' services subState
+
+let update return' dispatcher services state =
+  match dispatcher.askGlobal () with
+  | Some Ignore ->
+    return' |> onlyState state
+
+  | None ->
+    updateLocal return' dispatcher services state

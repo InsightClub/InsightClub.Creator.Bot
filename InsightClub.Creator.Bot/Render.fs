@@ -443,10 +443,10 @@ let state services user state = async {
     return
       editingBlockMsg subState.Title subState.Msg,
       Some
-        [ [ button Button.insert    Dispatcher.nothing ]
+        [ [ button Button.insert    Dispatcher.ignore ]
           [ button Button.before    Dispatcher.before
             button Button.after     Dispatcher.after   ]
-          [ button Button.move      Dispatcher.nothing ]
+          [ button Button.move      Dispatcher.ignore ]
           [ button Button.movePrev  Dispatcher.prev
             button Button.moveNext  Dispatcher.next    ]
           [ button Button.show      Dispatcher.show

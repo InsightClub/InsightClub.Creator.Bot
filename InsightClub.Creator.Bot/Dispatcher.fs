@@ -30,8 +30,8 @@ let add = "/add"
 let back = "/back"
 let before = "/before"
 let after = "/after"
-let nothing = "/nothing"
 let clean = "/clean"
+let ignore = "."
 
 let private getBiggest =
   Seq.maxBy (fun (s: PhotoSize) -> s.Width)
@@ -83,6 +83,8 @@ let private (|ParamQ|_|) command = function
   | _ -> None
 
 let dispatchMessage message : Dispatcher<unit> =
+  let askGlobal () = None
+
   let askInactive () =
     match message with
     | Command start -> Some Inactive.Start
@@ -132,7 +134,8 @@ let dispatchMessage message : Dispatcher<unit> =
 
   let askListingBlocks () = None
 
-  { askInactive = askInactive
+  { askGlobal = askGlobal
+    askInactive = askInactive
     askIdle = askIdle
     askCreatingCourse = askCreatingCourse
     askEditingCourse = askEditingCourse
@@ -144,6 +147,11 @@ let dispatchMessage message : Dispatcher<unit> =
     askListingBlocks = askListingBlocks }
 
 let dispatchCallbackQuery query =
+  let askGlobal () =
+    match query with
+    | CommandQ ignore -> Some Ignore
+    | _               -> None
+
   let askInactive () = None
 
   let askIdle () = None
@@ -188,7 +196,6 @@ let dispatchCallbackQuery query =
   let askEditingBlock () =
     match query with
     | CommandQ back    -> Some EditingBlock.Back
-    | CommandQ nothing -> Some EditingBlock.Nothing
     | CommandQ before  -> Some EditingBlock.InsertBefore
     | CommandQ after   -> Some EditingBlock.InsertAfter
     | CommandQ prev    -> Some <| EditingBlock.Prev QueryEffect.BeginningReached
@@ -205,7 +212,8 @@ let dispatchCallbackQuery query =
     | CommandQ back  -> Some ListingBlocks.Back
     | _              -> None
 
-  { askInactive = askInactive
+  { askGlobal = askGlobal
+    askInactive = askInactive
     askIdle = askIdle
     askCreatingCourse = askCreatingCourse
     askEditingCourse = askEditingCourse
