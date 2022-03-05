@@ -40,7 +40,7 @@ let startBot
   let printStarted () =
     printfn
       "Bot started! Listening to %s"
-      appConfig.Server.Listen
+      appConfig.Server.Listens
 
   let setWebhook () =
     setWebhookBase webhookUrl None None None
@@ -59,53 +59,42 @@ let startBot
 
 [<EntryPoint>]
 let main _ =
-  let filePath = "Config.yaml"
-
-  let printNoFile () =
-    printfn $"Please, provide a {filePath} file."
-
   let printNoConnection () =
     printfn "%s"
       <| "Error connecting to database. "
       +  "Probably the problem is with connection details."
 
-  let configOption = Config.tryLoad filePath
+  let config = Config.load "Config.json"
 
-  if configOption.IsSome then
-    let config = configOption.Value
+  use listener = new HttpListener()
+  listener.Prefixes.Add(config.Server.Listens)
 
-    use listener = new HttpListener()
-    listener.Prefixes.Add(config.Server.Listen)
+  let getConnection () =
+    Sql.host config.Database.Host
+    |> Sql.database config.Database.Database
+    |> Sql.username config.Database.Username
+    |> Sql.password config.Database.Password
+    |> Sql.port config.Database.Port
+    |> Sql.formatConnectionString
+    |> Sql.connect
+    |> Sql.createConnection
 
-    let getConnection () =
-      Sql.host config.Db.Host
-      |> Sql.database config.Db.Database
-      |> Sql.username config.Db.Username
-      |> Sql.password config.Db.Password
-      |> Sql.port config.Db.Port
-      |> Sql.formatConnectionString
-      |> Sql.connect
-      |> Sql.createConnection
+  let connected =
+    try
+      // Test connection
+      using (getConnection()) (fun c -> c.Open())
+      true
+    with
+    | _ ->
+      printNoConnection ()
+      false
 
-    let connected =
-      try
-        // Test connection
-        using (getConnection()) (fun c -> c.Open())
-        true
-      with
-      | _ ->
-        printNoConnection ()
-        false
-
-    if connected then
-      // Run synchronously to block the tread
-      // Don't use Async.StartImmediate
-      // or program will immediately shut after the launch
-      startBot config listener getConnection
-      |> Async.Ignore
-      |> Async.RunSynchronously
-
-  else
-    printNoFile ()
+  if connected then
+    // Run synchronously to block the tread
+    // Don't use Async.StartImmediate
+    // or program will immediately shut after the launch
+    startBot config listener getConnection
+    |> Async.Ignore
+    |> Async.RunSynchronously
 
   0 // Return an integer exit code

@@ -28,16 +28,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Default.Config.yaml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="Config.yaml" CopyToOutputDirectory="PreserveNewest" Condition="'$(Configuration)'=='DEBUG'" />
-    <None Include=".gitignore" />
-    <None Include=".gitattributes" />
-    <None Include=".editorconfig" />
-    <None Include="nuget.config" />
+    <None Include="Config.json">
+      <CopyToOutputDirectory Condition="'$(Configuration)'=='DEBUG'">PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory Condition="'$(Configuration)'=='RELEASE'">PreserveNewest</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FSharp.Configuration" Version="2.0.0" />
     <PackageReference Include="InsightClub.Funogram" Version="2.0.3" />
     <PackageReference Include="InsightClub.Funogram.Telegram" Version="4.4.3" />
     <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />

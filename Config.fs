@@ -1,17 +1,34 @@
 module InsightClub.Creator.Bot.Config
 
+open System
 open System.IO
-open FSharp.Configuration
+open Microsoft.FSharpLu.Json
+
+module Json = Compact.Strict
 
 
-type Config = YamlConfig<"Default.Config.yaml">
+// Types
+type Server =
+  { Address: String
+    Listens: String }
 
+type Database =
+  { Host: String
+    Database: String
+    Username: String
+    Password: String
+    Port: Int32 }
+
+type Storage =
+  { Path: String }
+
+type Config =
+  { Token: String
+    Server: Server
+    Database: Database
+    Storage: Storage }
+
+// Values
 module Config =
-  let tryLoad filePath =
-    let config = Config()
-
-    if (File.Exists filePath) then
-      config.Load(filePath)
-      Some config
-    else
-      None
+  let load =
+    File.ReadAllText >> Json.deserialize<Config>
