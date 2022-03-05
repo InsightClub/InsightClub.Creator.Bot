@@ -1,7 +1,10 @@
 module InsightClub.Creator.Bot.Bot
 
 
-// Types
+// ############################################
+// ###                TYPES                 ###
+// ############################################
+
 type CourseId = int
 type BlockId = int
 type CourseTitle = string
@@ -257,8 +260,11 @@ type Services<'Result> =
 type Return<'Effect, 'Result> =
   State -> 'Effect option -> 'Result
 
-// Values
-/// Initial state
+
+// ############################################
+// ###                VALUES                ###
+// ############################################
+
 let initialState = Inactive
 
 let private coursesPerPage = 5
