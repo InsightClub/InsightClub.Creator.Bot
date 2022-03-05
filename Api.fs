@@ -57,13 +57,13 @@ let sendContent config userId storagePath content = async {
     FileToSend.File <| (fileId, Storage.getFile storagePath fileId)
 
   match content with
-  | Core.Text text ->
+  | Bot.Text text ->
     do!
       Api.sendMessage userId text
       |> Api.api config
       |> Async.Ignore
 
-  | Core.Photo fileId ->
+  | Bot.Photo fileId ->
     do!
       Api.sendChatAction userId ChatAction.UploadPhoto
       |> Api.api config
@@ -74,7 +74,7 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
-  | Core.Audio fileId ->
+  | Bot.Audio fileId ->
     do!
       Api.sendChatAction userId ChatAction.UploadAudio
       |> Api.api config
@@ -85,7 +85,7 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
-  | Core.Video fileId ->
+  | Bot.Video fileId ->
     do!
       Api.sendChatAction userId ChatAction.UploadVideo
       |> Api.api config
@@ -96,7 +96,7 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
-  | Core.Voice fileId ->
+  | Bot.Voice fileId ->
     do!
       Api.sendChatAction userId ChatAction.UploadAudio
       |> Api.api config
@@ -107,7 +107,7 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
-  | Core.Document fileId ->
+  | Bot.Document fileId ->
     do!
       Api.sendChatAction userId ChatAction.UploadDocument
       |> Api.api config
@@ -118,7 +118,7 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
-  | Core.VideoNote fileId ->
+  | Bot.VideoNote fileId ->
     do!
       Api.sendChatAction userId ChatAction.UploadVideoNote
       |> Api.api config
@@ -150,7 +150,7 @@ let onUpdate getConnection storagePath ctx = async {
 
     let return' = Async.singleton >> always
 
-    let! state = Core.update return' dispatcher services state
+    let! state = Bot.update return' dispatcher services state
 
     let renderServices = getRenderServices connection creatorId
 
@@ -181,7 +181,7 @@ let onUpdate getConnection storagePath ctx = async {
 
     let return' state effect = Async.singleton (state, effect)
 
-    let! state, effect = Core.update return' dispatcher services state
+    let! state, effect = Bot.update return' dispatcher services state
 
     let effectContents, queryAnswer = Render.queryEffect effect
 

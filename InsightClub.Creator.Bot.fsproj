@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <Compile Include="Utility.fs" />
-    <Compile Include="Core.fs" />
+    <Compile Include="Bot.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="Repo.fs" />
     <Compile Include="Storage.fs" />

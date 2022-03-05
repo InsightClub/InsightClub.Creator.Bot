@@ -1,6 +1,6 @@
 module InsightClub.Creator.Bot.Repo
 
-open Core
+open Bot
 open System
 open Npgsql
 open Npgsql.FSharp

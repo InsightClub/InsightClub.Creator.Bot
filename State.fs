@@ -8,14 +8,14 @@ module Json = Compact.Strict
 type State =
   /// Id of the last message sent with the inline keyboard
   { LastId: int64 option
-    State: Core.BotState }
+    State: Bot.State }
 
 let create lastId state =
   { LastId = lastId
     State = state }
 
 let initialJson =
-  create None Core.initial
+  create None Bot.initialState
   |> Json.serialize
 
 let get connection telegramId =

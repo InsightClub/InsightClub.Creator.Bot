@@ -1,6 +1,6 @@
 module InsightClub.Creator.Bot.Render
 
-open Core
+open Bot
 open System
 open Funogram.Telegram
 open System.Text.RegularExpressions

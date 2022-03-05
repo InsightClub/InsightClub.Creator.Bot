@@ -1,6 +1,6 @@
 module InsightClub.Creator.Bot.Services
 
-open Core
+open Bot
 open Funogram
 open Funogram.Telegram
 

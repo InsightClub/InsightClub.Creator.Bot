@@ -1,6 +1,6 @@
 module InsightClub.Creator.Bot.Dispatcher
 
-open Core
+open Bot
 open System
 open Funogram.Telegram
 
@@ -82,7 +82,7 @@ let private (|ParamQ|_|) command = function
 
   | _ -> None
 
-let dispatchMessage message : BotDispatcher<unit> =
+let dispatchMessage message : Dispatcher<unit> =
   let askInactive () =
     match message with
     | Command start -> Some Inactive.Start

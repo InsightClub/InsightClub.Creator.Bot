@@ -1,4 +1,4 @@
-module InsightClub.Creator.Bot.Core
+module InsightClub.Creator.Bot.Bot
 
 
 // Types
@@ -182,7 +182,7 @@ module ListingBlocks =
       Count: Count
       Msg: Msg }
 
-type BotState =
+type State =
   | Inactive
   | Idle of Idle.Msg
   | CreatingCourse of CreatingCourse.Msg
@@ -194,19 +194,19 @@ type BotState =
   | EditingBlock of EditingBlock.State
   | ListingBlocks of ListingBlocks.State
 
-type BotPort<'Command> = unit -> 'Command option
+type Port<'Command> = unit -> 'Command option
 
-type BotDispatcher<'Effect> =
-  { askInactive: BotPort<Inactive.Command>
-    askIdle: BotPort<Idle.Command>
-    askCreatingCourse: BotPort<CreatingCourse.Command>
-    askEditingCourse: BotPort<EditingCourse.Command>
-    askEditingTitle: BotPort<EditingTitle.Command>
-    askEditingDesc: BotPort<EditingDesc.Command<'Effect>>
-    askListingCourses: BotPort<ListingCourses.Command<'Effect>>
-    askCreatingBlock: BotPort<CreatingBlock.Command>
-    askEditingBlock: BotPort<EditingBlock.Command<'Effect>>
-    askListingBlocks: BotPort<ListingBlocks.Command<'Effect>> }
+type Dispatcher<'Effect> =
+  { askInactive: Port<Inactive.Command>
+    askIdle: Port<Idle.Command>
+    askCreatingCourse: Port<CreatingCourse.Command>
+    askEditingCourse: Port<EditingCourse.Command>
+    askEditingTitle: Port<EditingTitle.Command>
+    askEditingDesc: Port<EditingDesc.Command<'Effect>>
+    askListingCourses: Port<ListingCourses.Command<'Effect>>
+    askCreatingBlock: Port<CreatingBlock.Command>
+    askEditingBlock: Port<EditingBlock.Command<'Effect>>
+    askListingBlocks: Port<ListingBlocks.Command<'Effect>> }
 
 type Service<'Param, 'Result> =
   ('Param -> 'Result) -> 'Result
@@ -214,7 +214,7 @@ type Service<'Param, 'Result> =
 type Service<'Result> =
   Service<unit, 'Result>
 
-type BotServices<'Result> =
+type Services<'Result> =
   { tryCreateCourse:
       CourseTitle -> Service<Result<CourseId, TitleError>, 'Result>
 
@@ -255,11 +255,11 @@ type BotServices<'Result> =
       BlockId -> Service<bool, 'Result> }
 
 type Return<'Effect, 'Result> =
-  BotState -> 'Effect option -> 'Result
+  State -> 'Effect option -> 'Result
 
 // Values
 /// Initial state
-let initial = Inactive
+let initialState = Inactive
 
 let private coursesPerPage = 5
 
