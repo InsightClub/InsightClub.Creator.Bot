@@ -14,8 +14,6 @@ let startBot
   (appConfig: Config)
   (listener: HttpListener)
   (getConnection: unit -> NpgsqlConnection) =
-  // YamlConfig adds additional '/' character at the end of urls
-  // So don't prepend apiPath with '/'
   let apiPath = $"api/{appConfig.Token}"
 
   let webhookUrl =
