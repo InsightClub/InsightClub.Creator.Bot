@@ -695,9 +695,11 @@ let updateListingBlocks
 
 let private updateLocal return' dispatcher services = function
 | Inactive ->
-  dispatcher.askInactive ()
-  |> updateInactive
-  |> onlyState <| return'
+  let newState =
+    dispatcher.askInactive ()
+    |> updateInactive
+
+  return' |> onlyState newState
 
 | Idle _ ->
   dispatcher.askIdle ()
