@@ -13,22 +13,22 @@ let get connection config storagePath creatorId =
     return! callback courseIdOption }
 
   let tryUpdateTitle courseId courseTitle callback = async {
-    let! wasUpdated =
+    let! isUpdated =
       Repo.tryUpdateTitle connection courseId courseTitle
 
-    return! callback wasUpdated }
+    return! callback isUpdated }
 
   let tryUpdateDesc courseId courseDesc callback = async {
-    let! ok =
+    let! isUpdated =
       Repo.tryUpdateDesc connection courseId courseDesc
 
-    return! callback ok }
+    return! callback isUpdated }
 
   let checkAnyCourses callback = async {
-    let! any =
+    let! isAny =
       Repo.checkAnyCourses connection creatorId
 
-    return! callback any }
+    return! callback isAny }
 
   let getCoursesCount callback = async {
     let! count =
@@ -78,10 +78,10 @@ let get connection config storagePath creatorId =
     return! callback count }
 
   let checkAnyBlocks courseId callback = async {
-    let! any =
+    let! isAny =
       Repo.checkAnyBlocks connection courseId
 
-    return! callback any }
+    return! callback isAny }
 
   let getBlockContents blockId callback = async {
     let! contents =

@@ -213,51 +213,51 @@ type Dispatcher<'Effect> =
     askEditingBlock: Port<EditingBlock.Command<'Effect>>
     askListingBlocks: Port<ListingBlocks.Command<'Effect>> }
 
-type Service<'Param, 'Result> =
+type Apply<'Param, 'Result> =
   ('Param -> 'Result) -> 'Result
 
-type Service<'Result> =
-  Service<unit, 'Result>
+type Apply<'Result> =
+  Apply<unit, 'Result>
 
 type Services<'Result> =
   { tryCreateCourse:
-      CourseTitle -> Service<Result<CourseId, TitleError>, 'Result>
+      CourseTitle -> Apply<Result<CourseId, TitleError>, 'Result>
 
     tryUpdateTitle:
-      CourseId -> CourseTitle -> Service<Result<unit, TitleError>, 'Result>
+      CourseId -> CourseTitle -> Apply<Result<unit, TitleError>, 'Result>
 
     tryUpdateDesc:
-      CourseId -> CourseDesc -> Service<bool, 'Result>
+      CourseId -> CourseDesc -> Apply<bool, 'Result>
 
     checkAnyCourses:
-      Service<bool, 'Result>
+      Apply<bool, 'Result>
 
     getCoursesCount:
-      Service<Count, 'Result>
+      Apply<Count, 'Result>
 
     tryCreateBlock:
-      CourseId -> Index -> BlockTitle -> Service<BlockId option, 'Result>
+      CourseId -> Index -> BlockTitle -> Apply<BlockId option, 'Result>
 
     addContent:
-      BlockId -> Content -> Service<'Result>
+      BlockId -> Content -> Apply<'Result>
 
     getBlockInfo:
-      BlockId -> Service<Index * BlockTitle, 'Result>
+      BlockId -> Apply<Index * BlockTitle, 'Result>
 
     getBlocksCount:
-      CourseId -> Service<Count, 'Result>
+      CourseId -> Apply<Count, 'Result>
 
     checkAnyBlocks:
-      CourseId -> Service<bool, 'Result>
+      CourseId -> Apply<bool, 'Result>
 
     getBlockContents:
-      BlockId -> Service<Content list, 'Result>
+      BlockId -> Apply<Content list, 'Result>
 
     getBlockInfoByIndex:
-      CourseId -> Index -> Service<BlockId * BlockTitle, 'Result>
+      CourseId -> Index -> Apply<BlockId * BlockTitle, 'Result>
 
     cleanBlock:
-      BlockId -> Service<bool, 'Result> }
+      BlockId -> Apply<bool, 'Result> }
 
 type Return<'Effect, 'Result> =
   State -> 'Effect option -> 'Result
@@ -293,9 +293,9 @@ let private updateIdle return' services = function
 
 | Some Idle.EditCourse ->
   services.checkAnyCourses <|
-    fun any ->
+    fun isAny ->
       let newState =
-        if any then
+        if isAny then
           ListingCourses
             { Page = 0
               Count = coursesPerPage
@@ -314,9 +314,9 @@ let private updateCreatingCourse return' services = function
 
 | Some (CreatingCourse.CreateCourse title) ->
   services.tryCreateCourse title <|
-    fun res ->
+    fun result ->
       let newState =
-        match res with
+        match result with
         | Ok courseId ->
           EditingCourse (courseId, EditingCourse.CourseCreated)
 
@@ -357,9 +357,9 @@ let private updateEditingCourse return' services courseId = function
 
 | Some EditingCourse.EditBlock ->
   services.checkAnyBlocks courseId <|
-    fun any ->
+    fun isAny ->
       let newState =
-        if any then
+        if isAny then
           ListingBlocks
             { CourseId = courseId
               Page = 0
@@ -385,9 +385,9 @@ let private updateEditingTitle return' services courseId = function
 
 | Some (EditingTitle.SetTitle title) ->
   services.tryUpdateTitle courseId title <|
-    fun res ->
+    fun result ->
       let newState =
-        match res with
+        match result with
         | Ok () ->
           EditingCourse (courseId, EditingCourse.TitleSet)
 
@@ -411,9 +411,9 @@ let private updateEditingDesc return' services courseId = function
 
 | Some (EditingDesc.SetDesc desc) ->
   services.tryUpdateDesc courseId desc <|
-    fun success ->
+    fun isUpdated ->
       let newState =
-        if success then
+        if isUpdated then
           EditingCourse (courseId, EditingCourse.DescSet)
         else
           EditingDesc (courseId, EditingDesc.DescTooLong)
