@@ -36,7 +36,7 @@ let private idleMsg (user: User) = function
     |> Option.map ((+) " ")
     |> Option.defaultValue String.Empty
 
-  c$"Добро пожаловать в InsightClub.Creator.Bot, {user.FirstName} \
+  c$"Добро пожаловать в InsightClub.Bot, {user.FirstName} \
     {lastName}! ✨ С помощью этого бота Вы можете конструировать свои \
     курсы! 😎
 
@@ -57,6 +57,7 @@ let private idleMsg (user: User) = function
 
 | Idle.NoCourses ->
   c$"У Вас пока нет курсов {randomEmoji ()}
+
     Создайте новый, отправив команду {Dispatcher.new'} 🤹‍♂️"
 
 | Idle.CreateCanceled ->
@@ -76,6 +77,7 @@ let private idleMsg (user: User) = function
 
 | Idle.Error ->
   c$"Неизвестная команда {randomEmoji ()}
+
     Отправьте {Dispatcher.help} для получения помощи 👀"
 
 let private creatingCourseMsg = function
@@ -162,6 +164,7 @@ let private editingCourseMsg = function
 
 | EditingCourse.NoBlocks ->
   c$"В этом курсе пока нет блоков {randomEmoji ()}
+
     Нажмите на кнопку «Добавить», чтоб добавить один или несколько блоков 🤹‍♂️
 
     Режим редактирования курса ✏️
@@ -258,15 +261,18 @@ let private listingCoursesMsg page count courseCount msg =
   let min = page * count + 1
   let max = page * count + courseCount
 
-  if min = max
-  then $"Курс № {min}"
-  else $"Курсы с № {min} по № {max}"
-  |> m
-  |> c
+  let text =
+    if min = max then
+        $"Курс № {min}"
+
+      else
+        $"Курсы с № {min} по № {max}"
+
+  c (m text)
 
 let private creatingBlockMsg = function
 | CreatingBlock.Started ->
-  c "Режим создание блока 💫
+  c "Режим создания блока 💫
 
     Отправьте заголовок будущего блока."
 
@@ -343,11 +349,14 @@ let private listingBlocksMsg page count blocksCount msg =
   let min = page * count + 1
   let max = page * count + blocksCount
 
-  if min = max
-  then $"Блок № {min}"
-  else $"Блоки с № {min} по № {max}"
-  |> m
-  |> c
+  let text =
+    if min = max then
+      $"Блок № {min}"
+
+    else
+      $"Блоки с № {min} по № {max}"
+
+  c (m text)
 
 module private Button =
   let cancel = "Отмена ❌"

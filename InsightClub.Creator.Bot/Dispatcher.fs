@@ -9,7 +9,7 @@ type Message = Types.Message
 type CallbackQuery = Types.CallbackQuery
 type PhotoSize = Types.PhotoSize
 
-type QueryEffect =
+type InlineQueryEffect =
   | ShowContent of Content list
   | BeginningReached
   | EndingReached
@@ -77,7 +77,10 @@ let private (|CommandQ|_|) command = function
 let private (|ParamQ|_|) command = function
   | { CallbackQuery.Data = Some text }
     when text.StartsWith(command + " ") ->
-    let start = String.length command + 1
+
+    let start =
+      String.length command + 1
+
     tryParseWith Int32.TryParse text.[ start .. ]
 
   | _ -> None
@@ -183,8 +186,8 @@ let dispatchCallbackQuery query =
   let askListingCourses () =
     match query with
     | ParamQ edit id -> Some <| ListingCourses.Select id
-    | CommandQ prev  -> Some <| ListingCourses.Prev QueryEffect.BeginningReached
-    | CommandQ next  -> Some <| ListingCourses.Next QueryEffect.EndingReached
+    | CommandQ prev  -> Some <| ListingCourses.Prev BeginningReached
+    | CommandQ next  -> Some <| ListingCourses.Next EndingReached
     | CommandQ exit  -> Some ListingCourses.Exit
     | _              -> None
 
@@ -195,20 +198,20 @@ let dispatchCallbackQuery query =
 
   let askEditingBlock () =
     match query with
-    | CommandQ back    -> Some EditingBlock.Back
-    | CommandQ before  -> Some EditingBlock.InsertBefore
-    | CommandQ after   -> Some EditingBlock.InsertAfter
-    | CommandQ prev    -> Some <| EditingBlock.Prev QueryEffect.BeginningReached
-    | CommandQ next    -> Some <| EditingBlock.Next QueryEffect.EndingReached
-    | CommandQ clean   -> Some <| EditingBlock.Clean QueryEffect.BlockEmpty
-    | CommandQ show    -> Some <| EditingBlock.Show QueryEffect.ShowContent
-    | _                -> None
+    | CommandQ back   -> Some EditingBlock.Back
+    | CommandQ before -> Some EditingBlock.InsertBefore
+    | CommandQ after  -> Some EditingBlock.InsertAfter
+    | CommandQ prev   -> Some <| EditingBlock.Prev BeginningReached
+    | CommandQ next   -> Some <| EditingBlock.Next EndingReached
+    | CommandQ clean  -> Some <| EditingBlock.Clean BlockEmpty
+    | CommandQ show   -> Some <| EditingBlock.Show ShowContent
+    | _               -> None
 
   let askListingBlocks () =
     match query with
     | ParamQ edit id -> Some <| ListingBlocks.Select id
-    | CommandQ prev  -> Some <| ListingBlocks.Prev QueryEffect.BeginningReached
-    | CommandQ next  -> Some <| ListingBlocks.Next QueryEffect.EndingReached
+    | CommandQ prev  -> Some <| ListingBlocks.Prev BeginningReached
+    | CommandQ next  -> Some <| ListingBlocks.Next EndingReached
     | CommandQ back  -> Some ListingBlocks.Back
     | _              -> None
 

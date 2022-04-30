@@ -295,6 +295,7 @@ let private updateIdle return' services = function
             { Page = 0
               Count = coursesPerPage
               Msg = ListingCourses.Started }
+
         else
           Idle Idle.NoCourses
 
@@ -360,6 +361,7 @@ let private updateEditingCourse return' services courseId = function
               Page = 0
               Count = coursesPerPage
               Msg = ListingBlocks.Started }
+
         else
           EditingCourse (courseId, EditingCourse.NoBlocks)
 
@@ -410,6 +412,7 @@ let private updateEditingDesc return' services courseId = function
       let newState =
         if isUpdated then
           EditingCourse (courseId, EditingCourse.DescSet)
+
         else
           EditingDesc (courseId, EditingDesc.DescTooLong)
 
@@ -437,6 +440,7 @@ let private updateListingCourses
             Msg = ListingCourses.Started }
 
     return'.withEffect newState beginningReached
+
   else
     let newState =
       ListingCourses
@@ -456,6 +460,7 @@ let private updateListingCourses
                 Msg = ListingCourses.Started }
 
         return'.withEffect newState endingReached
+
       else
         let newState =
           ListingCourses
@@ -546,6 +551,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
             Msg = EditingBlock.Started }
 
     return'.withEffect newState beginningReached
+
   else
     services.getBlockInfoByIndex subState.CourseId (subState.Index - 1) <|
       fun (blockId, title) ->
@@ -569,6 +575,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
                 Msg = EditingBlock.Started }
 
         return'.withEffect newState endingReached
+
       else
         services.getBlockInfoByIndex subState.CourseId (subState.Index + 1) <|
           fun (blockId, title) ->
@@ -602,6 +609,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
 
       if cleaned then
         return'.withNoEffects newState
+
       else
         return'.withEffect newState blockEmpty
 
@@ -646,6 +654,7 @@ let private updateListingBlocks
             Msg = ListingBlocks.Started }
 
     return'.withEffect newState beginningReached
+
   else
     let newState =
       ListingBlocks
@@ -665,6 +674,7 @@ let private updateListingBlocks
                 Msg = ListingBlocks.Started }
 
         return'.withEffect newState endingReached
+
       else
         let newState =
           ListingBlocks

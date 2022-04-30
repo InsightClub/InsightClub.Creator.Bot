@@ -166,6 +166,7 @@ let onUpdate getConnection storagePath ctx = async {
     let! lastId =
       if text <> String.Empty then
         sendMessage config user.Id text keyboard
+
       else
         Async.singleton None
 
@@ -197,6 +198,7 @@ let onUpdate getConnection storagePath ctx = async {
         if text <> String.Empty then
           do! editMessage config message.MessageId user.Id text keyboard
           return Option.map (always message.MessageId) keyboard
+
         else
           return Some message.MessageId
 
@@ -211,6 +213,7 @@ let onUpdate getConnection storagePath ctx = async {
 
         if text <> String.Empty then
           return! sendMessage config user.Id text keyboard
+
         else
           return None }
 

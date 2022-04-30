@@ -82,6 +82,7 @@ let main _ =
       // Test connection
       using (getConnection()) (fun c -> c.Open())
       true
+
     with
     | _ ->
       printNoConnection ()
@@ -89,8 +90,8 @@ let main _ =
 
   if connected then
     // Run synchronously to block the tread
-    // Don't use Async.StartImmediate
-    // or program will immediately shut after the launch
+    // Don't use Async.StartImmediate or the
+    // program will immediately shut after the launch
     startBot config listener getConnection
     |> Async.Ignore
     |> Async.RunSynchronously
