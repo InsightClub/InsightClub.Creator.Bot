@@ -259,8 +259,9 @@ type Services<'Result> =
     cleanBlock:
       BlockId -> Apply<bool, 'Result> }
 
-type Return<'Effect, 'Result> =
-  State -> 'Effect option -> 'Result
+type private Return<'Effect, 'Result> =
+  { withNoEffects: State -> 'Result
+    withEffect: State -> 'Effect -> 'Result }
 
 
 // ############################################
@@ -271,12 +272,6 @@ let initialState = Inactive
 
 let private coursesPerPage = 5
 
-let private onlyState state (return': Return<'Effect, 'Result>) =
-  return' state None
-
-let private withEffect (state, effect) (return': Return<'Effect, 'Result>) =
-  return' state (Some effect)
-
 let private updateInactive = function
 | Some Inactive.Start ->
   Idle Idle.Started
@@ -286,10 +281,10 @@ let private updateInactive = function
 
 let private updateIdle return' services = function
 | Some Idle.Help ->
-  return' |> onlyState (Idle Idle.Helping)
+  return'.withNoEffects (Idle Idle.Helping)
 
 | Some Idle.CreateCourse ->
-  return' |> onlyState (CreatingCourse CreatingCourse.Started)
+  return'.withNoEffects (CreatingCourse CreatingCourse.Started)
 
 | Some Idle.EditCourse ->
   services.checkAnyCourses <|
@@ -303,14 +298,14 @@ let private updateIdle return' services = function
         else
           Idle Idle.NoCourses
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | None ->
-  return' |> onlyState (Idle Idle.Error)
+  return'.withNoEffects (Idle Idle.Error)
 
 let private updateCreatingCourse return' services = function
 | Some CreatingCourse.Cancel ->
-  return' |> onlyState (Idle Idle.CreateCanceled)
+  return'.withNoEffects (Idle Idle.CreateCanceled)
 
 | Some (CreatingCourse.CreateCourse title) ->
   services.tryCreateCourse title <|
@@ -323,26 +318,26 @@ let private updateCreatingCourse return' services = function
         | Error error ->
           CreatingCourse (CreatingCourse.TitleError error)
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | None ->
-  return' |> onlyState (CreatingCourse CreatingCourse.Error)
+  return'.withNoEffects (CreatingCourse CreatingCourse.Error)
 
 let private updateEditingCourse return' services courseId = function
 | Some EditingCourse.EditTitle ->
     let newState =
       EditingTitle (courseId, EditingTitle.Started)
 
-    return' |> onlyState newState
+    return'.withNoEffects newState
 
 | Some EditingCourse.EditDesc ->
   let newState =
     EditingDesc (courseId, EditingDesc.Started)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some EditingCourse.Exit ->
-  return' |> onlyState (Idle Idle.ExitedEditing)
+  return'.withNoEffects (Idle Idle.ExitedEditing)
 
 | Some EditingCourse.AddBlock ->
   services.getBlocksCount courseId <|
@@ -353,7 +348,7 @@ let private updateEditingCourse return' services courseId = function
             Index = count
             Msg = CreatingBlock.Started }
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | Some EditingCourse.EditBlock ->
   services.checkAnyBlocks courseId <|
@@ -368,20 +363,20 @@ let private updateEditingCourse return' services courseId = function
         else
           EditingCourse (courseId, EditingCourse.NoBlocks)
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | None ->
   let newState =
     EditingCourse (courseId, EditingCourse.Error)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 let private updateEditingTitle return' services courseId = function
 | Some EditingTitle.Cancel ->
   let newState =
     EditingCourse (courseId, EditingCourse.TitleCanceled)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some (EditingTitle.SetTitle title) ->
   services.tryUpdateTitle courseId title <|
@@ -394,20 +389,20 @@ let private updateEditingTitle return' services courseId = function
         | Error error ->
           EditingTitle (courseId, EditingTitle.TitleError error)
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | None ->
   let newState =
      EditingTitle (courseId, EditingTitle.Error)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 let private updateEditingDesc return' services courseId = function
 | Some EditingDesc.Cancel ->
   let newState =
     EditingCourse (courseId, EditingCourse.DescCanceled)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some (EditingDesc.SetDesc desc) ->
   services.tryUpdateDesc courseId desc <|
@@ -418,13 +413,13 @@ let private updateEditingDesc return' services courseId = function
         else
           EditingDesc (courseId, EditingDesc.DescTooLong)
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | None ->
   let newState =
     EditingDesc (courseId, EditingDesc.Error)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 let private updateListingCourses
   return' services (subState: ListingCourses.State) = function
@@ -432,7 +427,7 @@ let private updateListingCourses
   let newState =
     EditingCourse (courseId, EditingCourse.Editing)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some (ListingCourses.Prev beginningReached) ->
   if subState.Page = 0 then
@@ -441,7 +436,7 @@ let private updateListingCourses
         { subState with
             Msg = ListingCourses.Started }
 
-    return' |> withEffect (newState, beginningReached)
+    return'.withEffect newState beginningReached
   else
     let newState =
       ListingCourses
@@ -449,7 +444,7 @@ let private updateListingCourses
             Page = subState.Page - 1
             Msg = ListingCourses.Started }
 
-    return' |> onlyState newState
+    return'.withNoEffects newState
 
 | Some (ListingCourses.Next endingReached) ->
   services.getCoursesCount <|
@@ -460,7 +455,7 @@ let private updateListingCourses
             { subState with
                 Msg = ListingCourses.Started }
 
-        return' |> withEffect (newState, endingReached)
+        return'.withEffect newState endingReached
       else
         let newState =
           ListingCourses
@@ -468,10 +463,10 @@ let private updateListingCourses
                 Page = subState.Page + 1
                 Msg = ListingCourses.Started }
 
-        return' |> onlyState newState
+        return'.withNoEffects newState
 
 | Some ListingCourses.Exit ->
-  return' |> onlyState (Idle Idle.EditCanceled)
+  return'.withNoEffects (Idle Idle.EditCanceled)
 
 | None ->
   let newState =
@@ -479,7 +474,7 @@ let private updateListingCourses
       { subState with
           Msg = ListingCourses.Error }
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 let private updateCreatingBlock
   return' services (subState: CreatingBlock.State) = function
@@ -487,7 +482,7 @@ let private updateCreatingBlock
   let newState =
     EditingCourse (subState.CourseId, EditingCourse.NewBlockCanceled)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some (CreatingBlock.CreateBlock title) ->
   services.tryCreateBlock subState.CourseId subState.Index title <|
@@ -507,7 +502,7 @@ let private updateCreatingBlock
             { subState with
                 Msg = CreatingBlock.TitleReserved }
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | None ->
   let newState =
@@ -515,7 +510,7 @@ let private updateCreatingBlock
       { subState with
           Msg = CreatingBlock.Error }
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 let private updateEditingBlock return' services (subState: EditingBlock.State)
   = function
@@ -523,7 +518,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
   let newState =
     EditingCourse (subState.CourseId, EditingCourse.Editing)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some EditingBlock.InsertBefore ->
   let newState =
@@ -532,7 +527,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
         Index = subState.Index
         Msg = CreatingBlock.Started }
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some EditingBlock.InsertAfter ->
   let newState =
@@ -541,7 +536,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
         Index = subState.Index + 1
         Msg = CreatingBlock.Started }
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Some (EditingBlock.Prev beginningReached) ->
   if subState.Index = 0 then
@@ -550,7 +545,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
         { subState with
             Msg = EditingBlock.Started }
 
-    return' |> withEffect (newState, beginningReached)
+    return'.withEffect newState beginningReached
   else
     services.getBlockInfoByIndex subState.CourseId (subState.Index - 1) <|
       fun (blockId, title) ->
@@ -562,7 +557,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
                 Title = title
                 Msg = EditingBlock.Started }
 
-        return' |> onlyState newState
+        return'.withNoEffects newState
 
 | Some (EditingBlock.Next endingReached) ->
   services.getBlocksCount subState.CourseId <|
@@ -573,7 +568,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
             { subState with
                 Msg = EditingBlock.Started }
 
-        return' |> withEffect (newState, endingReached)
+        return'.withEffect newState endingReached
       else
         services.getBlockInfoByIndex subState.CourseId (subState.Index + 1) <|
           fun (blockId, title) ->
@@ -585,7 +580,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
                   Title = title
                   Msg = EditingBlock.Started }
 
-            return' |> onlyState newState
+            return'.withNoEffects newState
 
 | Some (EditingBlock.Show showContents) ->
   services.getBlockContents subState.BlockId <|
@@ -595,7 +590,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
           { subState with
               Msg = EditingBlock.Started }
 
-      return' |> withEffect (newState, showContents contents)
+      return'.withEffect newState (showContents contents)
 
 | Some (EditingBlock.Clean blockEmpty) ->
   services.cleanBlock subState.BlockId <|
@@ -606,9 +601,9 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
               Msg = EditingBlock.Cleaned }
 
       if cleaned then
-        return' |> onlyState newState
+        return'.withNoEffects newState
       else
-        return' |> withEffect (newState, blockEmpty)
+        return'.withEffect newState blockEmpty
 
 | Some (EditingBlock.AddContent content) ->
   services.addContent subState.BlockId content <|
@@ -618,7 +613,7 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
           { subState with
               Msg = EditingBlock.ContentAdded content }
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | None ->
   let newState =
@@ -626,9 +621,9 @@ let private updateEditingBlock return' services (subState: EditingBlock.State)
       { subState with
           Msg = EditingBlock.Error }
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
-let updateListingBlocks
+let private updateListingBlocks
   return' services (subState: ListingBlocks.State) = function
 | Some (ListingBlocks.Select blockId) ->
   services.getBlockInfo blockId <|
@@ -641,7 +636,7 @@ let updateListingBlocks
             Title = title
             Msg = EditingBlock.Started }
 
-      return' |> onlyState newState
+      return'.withNoEffects newState
 
 | Some (ListingBlocks.Prev beginningReached) ->
   if subState.Page = 0 then
@@ -650,7 +645,7 @@ let updateListingBlocks
         { subState with
             Msg = ListingBlocks.Started }
 
-    return' |> withEffect (newState, beginningReached)
+    return'.withEffect newState beginningReached
   else
     let newState =
       ListingBlocks
@@ -658,7 +653,7 @@ let updateListingBlocks
             Page = subState.Page - 1
             Msg = ListingBlocks.Started }
 
-    return' |> onlyState newState
+    return'.withNoEffects newState
 
 | Some (ListingBlocks.Next endingReached) ->
   services.getBlocksCount subState.CourseId <|
@@ -669,7 +664,7 @@ let updateListingBlocks
             { subState with
                 Msg = ListingBlocks.Started }
 
-        return' |> withEffect (newState, endingReached)
+        return'.withEffect newState endingReached
       else
         let newState =
           ListingBlocks
@@ -677,13 +672,13 @@ let updateListingBlocks
                 Page = subState.Page + 1
                 Msg = ListingBlocks.Started }
 
-        return' |> onlyState newState
+        return'.withNoEffects newState
 
 | Some ListingBlocks.Back ->
   let newState =
     EditingCourse (subState.CourseId, EditingCourse.BlockCanceled)
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | None ->
   let newState =
@@ -691,7 +686,7 @@ let updateListingBlocks
       { subState with
           Msg = ListingBlocks.Error }
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 let private updateLocal return' dispatcher services = function
 | Inactive ->
@@ -699,7 +694,7 @@ let private updateLocal return' dispatcher services = function
     dispatcher.askInactive ()
     |> updateInactive
 
-  return' |> onlyState newState
+  return'.withNoEffects newState
 
 | Idle _ ->
   dispatcher.askIdle ()
@@ -738,9 +733,13 @@ let private updateLocal return' dispatcher services = function
   |> updateListingBlocks return' services subState
 
 let update return' dispatcher services state =
+  let return' =
+    { withNoEffects = fun state -> return' state None
+      withEffect = fun state effect -> return' state (Some effect) }
+
   match dispatcher.askGlobal () with
   | Some Ignore ->
-    return' |> onlyState state
+    return'.withNoEffects state
 
   | None ->
     updateLocal return' dispatcher services state
