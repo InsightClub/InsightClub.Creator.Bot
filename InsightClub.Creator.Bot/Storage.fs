@@ -1,20 +1,39 @@
 module InsightClub.Creator.Bot.Storage
 
 open System.IO
-open System.Net
+open System.Net.Http
 
+
+let private makePath storagePath fileId =
+  Path.Combine([| storagePath; fileId |])
 
 let saveFile botToken filePath storagePath fileId =
-  let wc = new WebClient()
-  wc.DownloadFileTaskAsync(
-    $"https://api.telegram.org/file/bot{botToken}/{filePath}",
-    Path.Combine([| storagePath; fileId |])
-  )
+  let url =
+    $"https://api.telegram.org/file/bot{botToken}/{filePath}"
+
+  let http =
+    new HttpClient()
+
+  task {
+    let! res =
+      http.GetAsync(url)
+
+    use fs =
+      new FileStream(
+        makePath storagePath fileId,
+        FileMode.CreateNew
+      )
+
+    do!
+      res.Content.CopyToAsync(fs)
+  }
   |> Async.AwaitTask
 
 let getFile storagePath fileId =
-  File.OpenRead(Path.Combine([| storagePath; fileId |]))
+  makePath storagePath fileId
+  |> File.OpenRead
   :> Stream
 
 let deleteFile storagePath fileId =
-  File.Delete(Path.Combine([| storagePath; fileId |]))
+  makePath storagePath fileId
+  |> File.Delete
