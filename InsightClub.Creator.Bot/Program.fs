@@ -14,13 +14,13 @@ let startBot
   (appConfig: Config)
   (listener: HttpListener)
   (getConnection: unit -> NpgsqlConnection) =
-  let apiPath = $"/api/{appConfig.BotToken}"
+  let apiPath = $"api/{appConfig.BotToken}"
 
   let webhookUrl =
     appConfig.BotAddress + apiPath
 
   let validate (req: HttpListenerRequest) =
-    req.Url.LocalPath = apiPath
+    req.Url.LocalPath = $"/{apiPath}"
 
   let webhook =
     { Listener = listener
