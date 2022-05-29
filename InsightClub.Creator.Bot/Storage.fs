@@ -1,39 +1,53 @@
 module InsightClub.Creator.Bot.Storage
 
+open System
 open System.IO
 open System.Net.Http
+open Dropbox.Api
 
 
-let private makePath storagePath fileId =
-  Path.Combine([| storagePath; fileId |])
+let private makePath fileName =
+  Path.Combine([| "/"; fileName |])
 
-let saveFile botToken filePath storagePath fileId =
-  let url =
-    $"https://api.telegram.org/file/bot{botToken}/{filePath}"
-
-  let http =
-    new HttpClient()
-
+let saveFile botToken filePath dropboxAccessToken fileId =
   task {
+    let url =
+      $"https://api.telegram.org/file/bot{botToken}/{filePath}"
+
+    use http =
+      new HttpClient()
+
     let! res =
       http.GetAsync(url)
 
-    use fs =
-      new FileStream(
-        makePath storagePath fileId,
-        FileMode.CreateNew
+    use dropbox = new DropboxClient(dropboxAccessToken)
+
+    let! _ =
+      dropbox.Files.UploadAsync(
+        makePath fileId,
+        body = res.Content.ReadAsStream()
       )
 
-    do!
-      res.Content.CopyToAsync(fs)
+    return ()
   }
   |> Async.AwaitTask
 
-let getFile storagePath fileId =
-  makePath storagePath fileId
-  |> File.OpenRead
-  :> Stream
+let getFile dropboxAccessToken fileId =
+  task {
+    use dropbox = new DropboxClient(dropboxAccessToken)
 
-let deleteFile storagePath fileId =
-  makePath storagePath fileId
-  |> File.Delete
+    let! file = dropbox.Files.DownloadAsync(makePath fileId)
+
+    return! file.GetContentAsStreamAsync()
+  }
+  |> Async.AwaitTask
+
+let deleteFile dropboxAccessToken fileId =
+  task {
+    use dropbox = new DropboxClient(dropboxAccessToken)
+
+    let! _ = dropbox.Files.DeleteV2Async(makePath fileId)
+
+    return ()
+  }
+  |> Async.AwaitTask

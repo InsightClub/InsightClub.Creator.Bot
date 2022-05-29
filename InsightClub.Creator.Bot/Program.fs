@@ -48,7 +48,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (Api.onUpdate getConnection appConfig.BotStorage) None
+    startBot botConfig (Api.onUpdate getConnection appConfig.DropboxAccessToken) None
 
   async {
     do! setWebhook ()

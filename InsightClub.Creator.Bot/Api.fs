@@ -52,9 +52,12 @@ let editMessage config messageId userId text keyboard = async {
     |> Async.StartChild
     |> Async.Ignore }
 
-let sendContent config userId storagePath content = async {
-  let makeFile fileId =
-    FileToSend.File <| (fileId, Storage.getFile storagePath fileId)
+let sendContent config userId dropboxAccessToken content = async {
+  let getFile fileId = async {
+    let! fileStream =
+      Storage.getFile dropboxAccessToken fileId
+
+    return FileToSend.File <| (fileId, fileStream) }
 
   match content with
   | Bot.Text text ->
@@ -69,8 +72,11 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
+    let! file =
+      getFile fileId
+
     do!
-      Api.sendPhoto userId (makeFile fileId) ""
+      Api.sendPhoto userId file ""
       |> Api.api config
       |> Async.Ignore
 
@@ -80,8 +86,11 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
+    let! file =
+      getFile fileId
+
     do!
-      Api.sendAudio userId (makeFile fileId) "" None None
+      Api.sendAudio userId file "" None None
       |> Api.api config
       |> Async.Ignore
 
@@ -91,8 +100,11 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
+    let! file =
+      getFile fileId
+
     do!
-      Api.sendVideo userId (makeFile fileId) ""
+      Api.sendVideo userId file ""
       |> Api.api config
       |> Async.Ignore
 
@@ -102,8 +114,11 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
+    let! file =
+      getFile fileId
+
     do!
-      Api.sendVoice userId (makeFile fileId) ""
+      Api.sendVoice userId file ""
       |> Api.api config
       |> Async.Ignore
 
@@ -113,8 +128,11 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
+    let! file =
+      getFile fileId
+
     do!
-      Api.sendDocument userId (makeFile fileId) ""
+      Api.sendDocument userId file ""
       |> Api.api config
       |> Async.Ignore
 
@@ -124,8 +142,11 @@ let sendContent config userId storagePath content = async {
       |> Api.api config
       |> Async.Ignore
 
+    let! file =
+      getFile fileId
+
     do!
-      Api.sendVideoNote userId (makeFile fileId)
+      Api.sendVideoNote userId file
       |> Api.api config
       |> Async.Ignore }
 
@@ -135,7 +156,7 @@ let getRenderServices connection creatorId : Render.Services =
     getCourseTitle = Repo.getCourseTitle connection
     getCourseDesc = Repo.getCourseDesc connection }
 
-let onUpdate getConnection storagePath ctx = async {
+let onUpdate getConnection dropboxAccessToken ctx = async {
   use connection = getConnection ()
   let config = ctx.Config
 
@@ -144,7 +165,7 @@ let onUpdate getConnection storagePath ctx = async {
   | { Message = Some ({ From = Some user } as message) } ->
     let! creatorId, lastId, state = State.get connection user.Id
 
-    let services = Services.get connection config storagePath creatorId
+    let services = Services.get connection config dropboxAccessToken creatorId
 
     let dispatcher = Dispatcher.dispatchMessage message
 
@@ -176,7 +197,7 @@ let onUpdate getConnection storagePath ctx = async {
   | { CallbackQuery = Some ({ From = user; Message = Some message } as query) } ->
     let! creatorId, _, state = State.get connection user.Id
 
-    let services = Services.get connection config storagePath creatorId
+    let services = Services.get connection config dropboxAccessToken creatorId
 
     let dispatcher = Dispatcher.dispatchCallbackQuery query
 
@@ -207,7 +228,7 @@ let onUpdate getConnection storagePath ctx = async {
 
         do!
           contents
-          |> List.map (sendContent config user.Id storagePath)
+          |> List.map (sendContent config user.Id dropboxAccessToken)
           |> Async.Sequential
           |> Async.Ignore
 

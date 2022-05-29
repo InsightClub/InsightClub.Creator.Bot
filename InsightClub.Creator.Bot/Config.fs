@@ -8,7 +8,7 @@ type Config =
     BotAddress: String
     BotEndPoint: String
     DatabaseUrl: String
-    BotStorage: String }
+    DropboxAccessToken: String }
 
 module Config =
   let private get variable =
@@ -19,4 +19,4 @@ module Config =
       BotAddress = get "BOT_ADDRESS"
       BotEndPoint = get "BOT_ENDPOINT"
       DatabaseUrl = get "DATABASE_URL"
-      BotStorage = get "BOT_STORAGE" }
+      DropboxAccessToken = get "DROPBOX_ACCESS_TOKEN" }
