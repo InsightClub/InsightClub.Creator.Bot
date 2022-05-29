@@ -14,13 +14,13 @@ let startBot
   (appConfig: Config)
   (listener: HttpListener)
   (getConnection: unit -> NpgsqlConnection) =
-  let apiPath = $"api/{appConfig.Token}"
+  let apiPath = $"/api/{appConfig.BotToken}"
 
   let webhookUrl =
-    appConfig.Server.Address.ToString() + apiPath
+    appConfig.BotAddress + apiPath
 
   let validate (req: HttpListenerRequest) =
-    req.Url.LocalPath = $"/{apiPath}"
+    req.Url.LocalPath = apiPath
 
   let webhook =
     { Listener = listener
@@ -28,17 +28,17 @@ let startBot
 
   let botConfig =
     { defaultConfig with
-        Token = appConfig.Token
+        Token = appConfig.BotToken
         WebHook = Some webhook }
 
   let printError e =
-    printfn "Failed creating webhook:"
-    printfn "%A" e
+    sprintf "Failed creating webhook on %s: %A" webhookUrl e
+    |> failwith
 
   let printStarted () =
     printfn
       "Bot started! Listening to %s"
-      appConfig.Server.Listens
+      appConfig.BotEndPoint
 
   let setWebhook () =
     setWebhookBase webhookUrl None None None
@@ -48,7 +48,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (Api.onUpdate getConnection appConfig.Storage.Path) None
+    startBot botConfig (Api.onUpdate getConnection appConfig.BotStorage) None
 
   async {
     do! setWebhook ()
@@ -62,18 +62,13 @@ let main _ =
       <| "Error connecting to database. "
       +  "Probably the problem is with connection details."
 
-  let config = Config.load "Config.json"
+  let config = Config.load ()
 
   use listener = new HttpListener()
-  listener.Prefixes.Add(config.Server.Listens)
+  listener.Prefixes.Add(config.BotEndPoint)
 
   let getConnection () =
-    Sql.host config.Database.Host
-    |> Sql.database config.Database.Database
-    |> Sql.username config.Database.Username
-    |> Sql.password config.Database.Password
-    |> Sql.port config.Database.Port
-    |> Sql.formatConnectionString
+    config.DatabaseUrl
     |> Sql.connect
     |> Sql.createConnection
 

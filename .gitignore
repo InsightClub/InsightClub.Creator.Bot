@@ -362,5 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# Project specific files
-Config.json
+# Local items
+/InsightClub.Creator.Bot/Properties/launchSettings.json

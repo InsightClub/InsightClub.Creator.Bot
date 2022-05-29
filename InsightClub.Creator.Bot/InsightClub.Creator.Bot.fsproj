@@ -28,13 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="Config.json">
-      <CopyToOutputDirectory Condition="'$(Configuration)'=='DEBUG'">PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory Condition="'$(Configuration)'=='RELEASE'">PreserveNewest</CopyToPublishDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="InsightClub.Funogram" Version="2.0.3" />
     <PackageReference Include="InsightClub.Funogram.Telegram" Version="4.4.3" />
     <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
