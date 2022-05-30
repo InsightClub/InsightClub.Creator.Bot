@@ -57,11 +57,6 @@ let startBot
 
 [<EntryPoint>]
 let main _ =
-  let printNoConnection () =
-    printfn "%s"
-      <| "Error connecting to database. "
-      +  "Probably the problem is with connection details."
-
   let config = Config.load ()
 
   use listener = new HttpListener()
@@ -72,23 +67,14 @@ let main _ =
     |> Sql.connect
     |> Sql.createConnection
 
-  let connected =
-    try
-      // Test connection
-      using (getConnection()) (fun c -> c.Open())
-      true
+  // Test connection
+  using (getConnection()) (fun c -> c.Open())
 
-    with
-    | _ ->
-      printNoConnection ()
-      false
-
-  if connected then
-    // Run synchronously to block the tread
-    // Don't use Async.StartImmediate or the
-    // program will immediately shut after the launch
-    startBot config listener getConnection
-    |> Async.Ignore
-    |> Async.RunSynchronously
+  // Run synchronously to block the tread
+  // Don't use Async.StartImmediate or the
+  // program will immediately shut after the launch
+  startBot config listener getConnection
+  |> Async.Ignore
+  |> Async.RunSynchronously
 
   0 // Return an integer exit code
