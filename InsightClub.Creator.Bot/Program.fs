@@ -8,6 +8,7 @@ open Funogram.Telegram.Bot
 open Npgsql
 open Npgsql.FSharp
 open System.Net
+open System
 
 
 let startBot
@@ -64,6 +65,11 @@ let main _ =
 
   let getConnection () =
     config.DatabaseUrl
+    |> Uri
+    |> Sql.fromUriToConfig
+    |> Sql.sslMode SslMode.Require
+    |> Sql.trustServerCertificate true
+    |> Sql.formatConnectionString
     |> Sql.connect
     |> Sql.createConnection
 
