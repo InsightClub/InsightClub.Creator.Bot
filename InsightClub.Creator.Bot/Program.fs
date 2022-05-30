@@ -18,7 +18,7 @@ let startBot
   let apiPath = $"api/{appConfig.BotToken}"
 
   let webhookUrl =
-    appConfig.BotAddress + apiPath
+    appConfig.WebhookAddress + apiPath
 
   let validate (req: HttpListenerRequest) =
     req.Url.LocalPath = $"/{apiPath}"
