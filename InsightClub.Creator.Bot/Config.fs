@@ -8,7 +8,9 @@ type Config =
     WebhookAddress: String
     BotEndPoint: String
     DatabaseUrl: String
-    DropboxAccessToken: String }
+    FilebaseAccessKey: String
+    FilebaseSecretKey: String
+    FilebaseBucketName: String }
 
 module Config =
   let private get variable =
@@ -19,4 +21,6 @@ module Config =
       WebhookAddress = get "WEBHOOK_ADDRESS"
       BotEndPoint = $"""http://*:{get "PORT"}/"""
       DatabaseUrl = get "DATABASE_URL"
-      DropboxAccessToken = get "DROPBOX_ACCESS_TOKEN" }
+      FilebaseAccessKey = get "FILEBASE_ACCESS_KEY"
+      FilebaseSecretKey = get "FILEBASE_SECRET_KEY"
+      FilebaseBucketName = get "FILEBASE_BUCKET_NAME" }

@@ -1,24 +1,29 @@
 module InsightClub.Creator.Bot.Program
 
+open Amazon
+open Amazon.Runtime
+open Amazon.S3
+open Amazon.S3.Model;
 open Config
 open Funogram.Api
-open Funogram.Types
 open Funogram.Telegram.Api
 open Funogram.Telegram.Bot
+open Funogram.Types
 open Npgsql
 open Npgsql.FSharp
-open System.Net
 open System
+open System.Net
 
 
 let startBot
-  (appConfig: Config)
+  (config: Config)
   (listener: HttpListener)
-  (getConnection: unit -> NpgsqlConnection) =
-  let apiPath = $"api/{appConfig.BotToken}"
+  (connectToDb: unit -> NpgsqlConnection)
+  (connectToStorage: unit -> Storage.Storage) =
+  let apiPath = $"api/{config.BotToken}"
 
   let webhookUrl =
-    appConfig.WebhookAddress + apiPath
+    config.WebhookAddress + apiPath
 
   let validate (req: HttpListenerRequest) =
     req.Url.LocalPath = $"/{apiPath}"
@@ -29,7 +34,7 @@ let startBot
 
   let botConfig =
     { defaultConfig with
-        Token = appConfig.BotToken
+        Token = config.BotToken
         WebHook = Some webhook }
 
   let printError e =
@@ -39,7 +44,7 @@ let startBot
   let printStarted () =
     printfn
       "Bot started! Listening to %s"
-      appConfig.BotEndPoint
+      config.BotEndPoint
 
   let setWebhook () =
     setWebhookBase webhookUrl None None None
@@ -49,7 +54,7 @@ let startBot
 
   let startBot () =
     printStarted ()
-    startBot botConfig (Api.onUpdate getConnection appConfig.DropboxAccessToken) None
+    startBot botConfig (Api.onUpdate connectToDb connectToStorage) None
 
   async {
     do! setWebhook ()
@@ -63,7 +68,7 @@ let main _ =
   use listener = new HttpListener()
   listener.Prefixes.Add(config.BotEndPoint)
 
-  let getConnection () =
+  let connectToDb () =
     config.DatabaseUrl
     |> Uri
     |> Sql.fromUriToConfig
@@ -74,12 +79,31 @@ let main _ =
     |> Sql.createConnection
 
   // Test connection
-  using (getConnection()) (fun c -> c.Open())
+  using (connectToDb()) (fun c -> c.Open())
+
+  let connectToStorage () =
+    let conf =
+      AmazonS3Config(
+        ServiceURL = "https://s3.filebase.com:443",
+        UseHttp = true,
+        ForcePathStyle = true
+      )
+
+    let creds =
+      BasicAWSCredentials(
+        config.FilebaseAccessKey,
+        config.FilebaseSecretKey
+      )
+
+    new Storage.Storage(
+      new AmazonS3Client(creds, conf),
+      config.FilebaseBucketName
+    )
 
   // Run synchronously to block the tread
   // Don't use Async.StartImmediate or the
   // program will immediately shut after the launch
-  startBot config listener getConnection
+  startBot config listener connectToDb connectToStorage
   |> Async.Ignore
   |> Async.RunSynchronously
 

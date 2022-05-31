@@ -1,15 +1,25 @@
 module InsightClub.Creator.Bot.Storage
 
+open Amazon.S3
+open Amazon.S3.Model
 open System
-open System.IO
 open System.Net.Http
-open Dropbox.Api
 
 
-let private makePath fileName =
-  Path.Combine([| "/"; fileName |])
+type Storage(client: AmazonS3Client, bucketName: String) =
+  let mutable isDisposed = false
 
-let saveFile botToken filePath dropboxAccessToken fileId =
+  member _.Client = client
+
+  member _.BucketName = bucketName
+
+  interface IDisposable with
+    member this.Dispose() =
+      if isDisposed then
+        client.Dispose()
+        isDisposed <- true
+
+let saveFile botToken filePath (storage: Storage) fileId =
   task {
     let url =
       $"https://api.telegram.org/file/bot{botToken}/{filePath}"
@@ -17,36 +27,48 @@ let saveFile botToken filePath dropboxAccessToken fileId =
     use http =
       new HttpClient()
 
-    let! res =
+    use! res =
       http.GetAsync(url)
 
-    use dropbox = new DropboxClient(dropboxAccessToken)
+    let req =
+      PutObjectRequest(
+        BucketName = storage.BucketName,
+        Key = fileId,
+        InputStream = res.Content.ReadAsStream()
+      )
 
     let! _ =
-      dropbox.Files.UploadAsync(
-        makePath fileId,
-        body = res.Content.ReadAsStream()
-      )
+      storage.Client.PutObjectAsync(req)
 
     return ()
   }
   |> Async.AwaitTask
 
-let getFile dropboxAccessToken fileId =
+let getFile (storage: Storage) fileId =
   task {
-    use dropbox = new DropboxClient(dropboxAccessToken)
+    let req =
+      GetObjectRequest(
+        BucketName = storage.BucketName,
+        Key = fileId
+      )
 
-    let! file = dropbox.Files.DownloadAsync(makePath fileId)
+    let! res =
+      storage.Client.GetObjectAsync(req)
 
-    return! file.GetContentAsStreamAsync()
+    return res.ResponseStream
   }
   |> Async.AwaitTask
 
-let deleteFile dropboxAccessToken fileId =
+let deleteFile (storage: Storage) fileId =
   task {
-    use dropbox = new DropboxClient(dropboxAccessToken)
+    let req =
+      DeleteObjectRequest(
+        BucketName = storage.BucketName,
+        Key = fileId
+      )
 
-    let! _ = dropbox.Files.DeleteV2Async(makePath fileId)
+    let! _ =
+      storage.Client.DeleteObjectAsync(req)
 
     return ()
   }

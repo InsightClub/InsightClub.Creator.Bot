@@ -52,10 +52,10 @@ let editMessage config messageId userId text keyboard = async {
     |> Async.StartChild
     |> Async.Ignore }
 
-let sendContent config userId dropboxAccessToken content = async {
+let sendContent config userId storage content = async {
   let getFile fileId = async {
     let! fileStream =
-      Storage.getFile dropboxAccessToken fileId
+      Storage.getFile storage fileId
 
     return FileToSend.File <| (fileId, fileStream) }
 
@@ -156,8 +156,9 @@ let getRenderServices connection creatorId : Render.Services =
     getCourseTitle = Repo.getCourseTitle connection
     getCourseDesc = Repo.getCourseDesc connection }
 
-let onUpdate getConnection dropboxAccessToken ctx = async {
-  use connection = getConnection ()
+let onUpdate connectToDb connectToStorage ctx = async {
+  use connection = connectToDb ()
+  use storage = connectToStorage ()
   let config = ctx.Config
 
   match ctx.Update with
@@ -165,7 +166,7 @@ let onUpdate getConnection dropboxAccessToken ctx = async {
   | { Message = Some ({ From = Some user } as message) } ->
     let! creatorId, lastId, state = State.get connection user.Id
 
-    let services = Services.get connection config dropboxAccessToken creatorId
+    let services = Services.get connection config storage creatorId
 
     let dispatcher = Dispatcher.dispatchMessage message
 
@@ -197,7 +198,7 @@ let onUpdate getConnection dropboxAccessToken ctx = async {
   | { CallbackQuery = Some ({ From = user; Message = Some message } as query) } ->
     let! creatorId, _, state = State.get connection user.Id
 
-    let services = Services.get connection config dropboxAccessToken creatorId
+    let services = Services.get connection config storage creatorId
 
     let dispatcher = Dispatcher.dispatchCallbackQuery query
 
@@ -228,7 +229,7 @@ let onUpdate getConnection dropboxAccessToken ctx = async {
 
         do!
           contents
-          |> List.map (sendContent config user.Id dropboxAccessToken)
+          |> List.map (sendContent config user.Id storage)
           |> Async.Sequential
           |> Async.Ignore
 

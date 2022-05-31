@@ -5,7 +5,7 @@ open Funogram
 open Funogram.Telegram
 
 
-let get connection config dropboxAccessToken creatorId =
+let get connection config storage creatorId =
   let tryCreateCourse courseTitle callback = async {
     let! courseIdOption =
       Repo.tryCreateCourse connection creatorId courseTitle
@@ -56,7 +56,7 @@ let get connection config dropboxAccessToken creatorId =
         Storage.saveFile
           config.Token
           file.FilePath.Value
-          dropboxAccessToken
+          storage
           file.FileId
         |> Async.Start
 
@@ -102,7 +102,7 @@ let get connection config dropboxAccessToken creatorId =
     // In future versions use batch delete
     for content in contents do
       if content.IsFile then
-        do! Storage.deleteFile dropboxAccessToken content.Content
+        do! Storage.deleteFile storage content.Content
 
     let! count =
       Repo.cleanBlock connection blockId
