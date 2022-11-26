@@ -5,10 +5,11 @@ open Microsoft.FSharpLu.Json
 module Json = Compact.Strict
 
 
-type State =
+type State = {
   /// Id of the last message sent with the inline keyboard
-  { LastId: int64 option
-    State: Bot.State }
+  LastId: int64 option
+  State: Bot.State
+}
 
 let create lastId state =
   { LastId = lastId

@@ -23,15 +23,15 @@
     <Compile Include="State.fs" />
     <Compile Include="Dispatcher.fs" />
     <Compile Include="Render.fs" />
-    <Compile Include="Api.fs" />
+    <Compile Include="Handler.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AWSSDK.Core" Version="3.7.11.10" />
     <PackageReference Include="AWSSDK.S3" Version="3.7.9.10" />
-    <PackageReference Include="InsightClub.Funogram" Version="2.0.3" />
-    <PackageReference Include="InsightClub.Funogram.Telegram" Version="4.4.3" />
+    <PackageReference Include="Funogram" Version="2.0.5" />
+    <PackageReference Include="Funogram.Telegram" Version="6.3.0" />
     <PackageReference Include="Microsoft.FSharpLu.Json" Version="0.11.7" />
     <PackageReference Include="Npgsql.FSharp" Version="4.2.0" />
   </ItemGroup>

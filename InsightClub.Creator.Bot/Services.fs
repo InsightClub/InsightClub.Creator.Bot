@@ -61,7 +61,7 @@ let get connection config storage creatorId =
         |> Async.Start
 
       | Error e ->
-        failwith <| sprintf "Error getting file: %A" e
+        failwith <| $"Error getting file: %A{e}"
 
     return! callback () }
 

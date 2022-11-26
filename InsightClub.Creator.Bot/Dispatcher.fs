@@ -81,7 +81,7 @@ let private (|ParamQ|_|) command = function
     let start =
       String.length command + 1
 
-    tryParseWith Int32.TryParse text.[ start .. ]
+    tryParseWith Int32.TryParse text[ start .. ]
 
   | _ -> None
 

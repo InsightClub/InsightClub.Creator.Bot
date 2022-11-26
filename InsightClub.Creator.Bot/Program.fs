@@ -1,12 +1,10 @@
 module InsightClub.Creator.Bot.Program
 
-open Amazon
 open Amazon.Runtime
 open Amazon.S3
-open Amazon.S3.Model;
 open Config
 open Funogram.Api
-open Funogram.Telegram.Api
+open Funogram.Telegram
 open Funogram.Telegram.Bot
 open Funogram.Types
 open Npgsql
@@ -33,28 +31,27 @@ let startBot
       ValidateRequest = validate }
 
   let botConfig =
-    { defaultConfig with
+    { Config.defaultConfig with
         Token = config.BotToken
         WebHook = Some webhook }
 
   let printError e =
-    sprintf "Failed creating webhook on %s: %A" webhookUrl e
+    $"Failed creating webhook on %s{webhookUrl}: %A{e}"
     |> failwith
 
   let printStarted () =
     printfn
-      "Bot started! Listening to %s"
-      config.BotEndPoint
+      $"Bot started! Listening to %s{config.BotEndPoint}"
 
   let setWebhook () =
-    setWebhookBase webhookUrl None None None
+    Req.SetWebhook.Make(webhookUrl)
     |> api botConfig
     |> Async.map (Result.mapError printError)
     |> Async.Ignore
 
   let startBot () =
     printStarted ()
-    startBot botConfig (Api.onUpdate connectToDb connectToStorage) None
+    startBot botConfig (Handler.onUpdate connectToDb connectToStorage) None
 
   async {
     do! setWebhook ()

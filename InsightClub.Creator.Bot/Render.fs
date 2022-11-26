@@ -22,7 +22,7 @@ let randomEmoji () =
     [| "🤷‍♂️"; "😵‍💫"; "🙄"; "🤪"; "🙀"
        "😭"; "😣"; "🥺"; "😑"; "💩" |]
 
-  emojis.[ random.Next(emojis.Length) ]
+  emojis[ random.Next(emojis.Length) ]
 
 let private commands =
   c$"{Dispatcher.new'} - Создать новый курс ⚡️
@@ -385,7 +385,8 @@ let private button text command : Button =
     LoginUrl = None
     CallbackGame = None
     SwitchInlineQuery = None
-    SwitchInlineQueryCurrentChat = None }
+    SwitchInlineQueryCurrentChat = None
+    WebApp = None }
 
 let state services user state = async {
   match state with
@@ -435,7 +436,7 @@ let state services user state = async {
     return
       listingCoursesMsg subState.Page subState.Count coursesCount subState.Msg,
       Some
-        [ for (id, title) in courses do
+        [ for id, title in courses do
             yield [ button title $"{Dispatcher.edit} {id}" ]
 
           yield [ button Button.prev Dispatcher.prev
@@ -472,7 +473,7 @@ let state services user state = async {
     return
       listingBlocksMsg subState.Page subState.Count blocksCount subState.Msg,
       Some
-        [ for (i, (id, title)) in List.indexed blocks do
+        [ for i, (id, title) in List.indexed blocks do
             yield
               [ button
                   $"{subState.Page * subState.Count + i + 1}. {title}"
