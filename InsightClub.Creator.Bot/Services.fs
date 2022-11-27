@@ -6,119 +6,128 @@ open Funogram.Telegram
 
 
 let get connection config storage creatorId =
-  let tryCreateCourse courseTitle callback = async {
-    let! courseIdOption =
-      Repo.tryCreateCourse connection creatorId courseTitle
+    let tryCreateCourse courseTitle callback =
+        async {
+            let! courseIdOption = Repo.tryCreateCourse connection creatorId courseTitle
 
-    return! callback courseIdOption }
+            return! callback courseIdOption
+        }
 
-  let tryUpdateTitle courseId courseTitle callback = async {
-    let! isUpdated =
-      Repo.tryUpdateTitle connection courseId courseTitle
+    let tryUpdateTitle courseId courseTitle callback =
+        async {
+            let! isUpdated = Repo.tryUpdateTitle connection courseId courseTitle
 
-    return! callback isUpdated }
+            return! callback isUpdated
+        }
 
-  let tryUpdateDesc courseId courseDesc callback = async {
-    let! isUpdated =
-      Repo.tryUpdateDesc connection courseId courseDesc
+    let tryUpdateDesc courseId courseDesc callback =
+        async {
+            let! isUpdated = Repo.tryUpdateDesc connection courseId courseDesc
 
-    return! callback isUpdated }
+            return! callback isUpdated
+        }
 
-  let checkAnyCourses callback = async {
-    let! isAny =
-      Repo.checkAnyCourses connection creatorId
+    let checkAnyCourses callback =
+        async {
+            let! isAny = Repo.checkAnyCourses connection creatorId
 
-    return! callback isAny }
+            return! callback isAny
+        }
 
-  let getCoursesCount callback = async {
-    let! count =
-      Repo.getCoursesCount connection creatorId
+    let getCoursesCount callback =
+        async {
+            let! count = Repo.getCoursesCount connection creatorId
 
-    return! callback count }
+            return! callback count
+        }
 
-  let tryCreateBlock courseId index blockTitle callback = async {
-    let! blockId =
-      Repo.tryCreateBlock connection courseId index blockTitle
+    let tryCreateBlock courseId index blockTitle callback =
+        async {
+            let! blockId = Repo.tryCreateBlock connection courseId index blockTitle
 
-    return! callback blockId }
+            return! callback blockId
+        }
 
-  let addContent blockId content callback = async {
-    do!
-      Repo.addContent connection blockId content
+    let addContent blockId content callback =
+        async {
+            do! Repo.addContent connection blockId content
 
-    if content.IsFile then
-      let! file =
-        Api.getFile content.Content
-        |> Api.api config
+            if content.IsFile then
+                let! file =
+                    Api.getFile content.Content
+                    |> Api.api config
 
-      match file with
-      | Ok file ->
-        Storage.saveFile
-          config.Token
-          file.FilePath.Value
-          storage
-          file.FileId
-        |> Async.Start
+                match file with
+                | Ok file ->
+                    Storage.saveFile config.Token file.FilePath.Value storage file.FileId
+                    |> Async.Start
 
-      | Error e ->
-        failwith <| $"Error getting file: %A{e}"
+                | Error e -> failwith $"Error getting file: %A{e}"
 
-    return! callback () }
+            return! callback ()
+        }
 
-  let getBlockInfo blockId callback = async {
-    let! info =
-      Repo.getBlockInfo connection blockId
+    let getBlockInfo blockId callback =
+        async {
+            let! info = Repo.getBlockInfo connection blockId
 
-    return! callback info }
+            return! callback info
+        }
 
-  let getBlocksCount courseId callback = async {
-    let! count =
-      Repo.getBlocksCount connection courseId
+    let getBlocksCount courseId callback =
+        async {
+            let! count = Repo.getBlocksCount connection courseId
 
-    return! callback count }
+            return! callback count
+        }
 
-  let checkAnyBlocks courseId callback = async {
-    let! isAny =
-      Repo.checkAnyBlocks connection courseId
+    let checkAnyBlocks courseId callback =
+        async {
+            let! isAny = Repo.checkAnyBlocks connection courseId
 
-    return! callback isAny }
+            return! callback isAny
+        }
 
-  let getBlockContents blockId callback = async {
-    let! contents =
-      Repo.getBlockContents connection blockId
+    let getBlockContents blockId callback =
+        async {
+            let! contents = Repo.getBlockContents connection blockId
 
-    return! callback contents }
+            return! callback contents
+        }
 
-  let getBlockInfoByIndex courseId blockId callback = async {
-    let! info =
-      Repo.getBlockInfoByIndex connection courseId blockId
+    let getBlockInfoByIndex courseId blockId callback =
+        async {
+            let! info = Repo.getBlockInfoByIndex connection courseId blockId
 
-    return! callback info }
+            return! callback info
+        }
 
-  let cleanBlock blockId callback = async {
-    let! contents =
-      Repo.getBlockContents connection blockId
+    let cleanBlock blockId callback =
+        async {
+            let! contents = Repo.getBlockContents connection blockId
 
-    // In future versions use batch delete
-    for content in contents do
-      if content.IsFile then
-        do! Storage.deleteFile storage content.Content
+            // In future versions use batch delete
+            for content in contents do
+                if content.IsFile then
+                    do! Storage.deleteFile storage content.Content
 
-    let! count =
-      Repo.cleanBlock connection blockId
+            let! count = Repo.cleanBlock connection blockId
 
-    return! callback (count > 0) }
+            return! callback (count > 0)
+        }
 
-  { tryCreateCourse = tryCreateCourse
-    tryUpdateTitle = tryUpdateTitle
-    tryUpdateDesc = tryUpdateDesc
-    checkAnyCourses = checkAnyCourses
-    getCoursesCount = getCoursesCount
-    tryCreateBlock = tryCreateBlock
-    addContent = addContent
-    getBlockInfo = getBlockInfo
-    getBlocksCount = getBlocksCount
-    checkAnyBlocks = checkAnyBlocks
-    getBlockContents = getBlockContents
-    getBlockInfoByIndex = getBlockInfoByIndex
-    cleanBlock = cleanBlock }
+    {
+        tryCreateCourse = tryCreateCourse
+        tryUpdateTitle = tryUpdateTitle
+        tryUpdateDesc = tryUpdateDesc
+        checkAnyCourses = checkAnyCourses
+        getCoursesCount = getCoursesCount
+        tryCreateBlock = tryCreateBlock
+        addContent = addContent
+        getBlockInfo = getBlockInfo
+        getBlocksCount = getBlocksCount
+        checkAnyBlocks = checkAnyBlocks
+        getBlockContents = getBlockContents
+        getBlockInfoByIndex = getBlockInfoByIndex
+        cleanBlock = cleanBlock
+    }
